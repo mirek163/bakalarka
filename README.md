@@ -1,2 +1,0 @@
-# bakalarka
- Bakalařská práce GAN

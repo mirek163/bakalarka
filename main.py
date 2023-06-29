@@ -1,26 +1,24 @@
 from __future__ import print_function, division
 
 import os
-#mport cv2
-#from keras.datasets import mnist
-from keras.layers import Input, Dense, Reshape, Flatten, Dropout
-from keras.layers import BatchNormalization, Activation, ZeroPadding2D
-from keras.layers import ELU, PReLU, LeakyReLU
-#from keras.layers.convolutional import UpSampling2D, Conv2D
+import traceback
+
+from keras.layers import Input, Dense, Reshape, \
+    Flatten  # Dropout ( musím pak vyzkoušet, jestli se budou generovat lepší model.add(Dropout(0.5)))
+
+from keras.layers import BatchNormalization  # Activation, ZeroPadding2D
+from keras.layers import LeakyReLU  # ELU, PReLU
 from keras.models import Sequential, Model
 from keras.optimizers import Adam
 
 import matplotlib.pyplot as plt
 
-
 import glob
 from PIL import Image
 
 import noise as ns
-from noise import snoise2
-import random
-
 import numpy as np
+
 
 class GAN():
     def __init__(self, noise_type='random'):
@@ -36,8 +34,8 @@ class GAN():
         # Build and compile the discriminator
         self.discriminator = self.build_discriminator()
         self.discriminator.compile(loss='binary_crossentropy',
-            optimizer=optimizer,
-            metrics=['accuracy'])
+                                   optimizer=optimizer,
+                                   metrics=['accuracy'])
 
         # Build the generator
         self.generator = self.build_generator(noise_type=self.noise_type)
@@ -68,7 +66,6 @@ class GAN():
         model.add(Dense(1024))
         model.add(LeakyReLU(alpha=0.2))
         model.add(BatchNormalization(momentum=0.8))  # Set training=True during training
-
 
         model.add(Dense(np.prod(self.img_shape), activation='tanh'))
         model.add(Reshape(self.img_shape))
@@ -112,112 +109,109 @@ class GAN():
 
         return Model(img, validity)
 
-    def train(self, epochs, batch_size=128, sample_interval=50, noise_type='random', mode='generate'):
+    def train(self, epochs, batch_size=128, sample_interval=50, noise_type='random'):
+        try:
+            image_files = glob.glob("C:/.develop/bakalarka/data/crack/*.jpg")
+            X_train = []
+            for image_file in image_files:
+                try:
+                    image = Image.open(image_file).convert('RGB')
+                    width, height = image.size
+                    size = min(width, height)
+                    left = (width - size) // 2
+                    top = (height - size) // 2
+                    right = left + size
+                    bottom = top + size
+                    image = image.crop((left, top, right, bottom))
+                    image = image.resize((64, 64))
+                    image = np.array(image)
+                    X_train.append(image)
+                except Exception as e:
+                    print("An error occurred while loading the image from the dataset:", image_file)
+                    traceback.print_exc()
 
-        image_files = glob.glob("C:/.develop/bakalarka/data/crack/*.jpg")
-        X_train = []
-        for image_file in image_files:
-            image = Image.open(image_file).convert('RGB')  # převed na grayscale
+            X_train = np.array(X_train)
+            X_train = X_train / 127.5 - 1.
+            X_train = X_train.reshape((-1, self.img_rows, self.img_cols, self.channels))
 
-            # Uprav rozměry
-            width, height = image.size
-            size = min(width, height)
-            left = (width - size) // 2
-            top = (height - size) // 2
-            right = left + size
-            bottom = top + size
-            image = image.crop((left, top, right, bottom))
+            # Adversarial ground truths
+            valid = np.ones((batch_size, 1))
+            fake = np.zeros((batch_size, 1))
 
-            # Resize the image to 64x64
-            image = image.resize((64, 64))
+            for epoch in range(epochs):
+                # ---------------------
+                #  Train Discriminator
+                # ---------------------
+                idx = np.random.randint(0, X_train.shape[0], batch_size)
+                imgs = X_train[idx]
+                myNoise = np.random.normal(0, 1, (batch_size, self.latent_dim))
+                gen_imgs = self.generator.predict(myNoise)
+                d_loss_real = self.discriminator.train_on_batch(imgs, valid)
+                d_loss_fake = self.discriminator.train_on_batch(gen_imgs, fake)
+                d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
 
-            image = np.array(image)
-            X_train.append(image)
+                # ---------------------
+                #  Train Generator
+                # ---------------------
+                myNoise = np.random.normal(0, 1, (batch_size, self.latent_dim))
+                for _ in range(3):
+                    g_loss = self.combined.train_on_batch(myNoise, valid)
 
-        X_train = np.array(X_train)
-        X_train = X_train / 127.5 - 1.
-        X_train = X_train.reshape((-1, self.img_rows, self.img_cols, self.channels))
+                # Plot the progress
+                print("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100 * d_loss[1], g_loss))
 
-        # Adversarial ground truths
-        valid = np.ones((batch_size, 1))
-        fake = np.zeros((batch_size, 1))
+                # Save generated images
+                if epoch % sample_interval == 0:
+                    self.sample_images(epoch, noise_type)
 
-        for epoch in range(epochs):
-
-            # ---------------------
-            #  Train Discriminator
-            # ---------------------
-
-            # Select a random batch of images
-            idx = np.random.randint(0, X_train.shape[0], batch_size)
-            imgs = X_train[idx]
-
-            myNoise = np.random.normal(0, 1, (batch_size, self.latent_dim))
-
-            # Generate a batch of new images
-            gen_imgs = self.generator.predict(myNoise)
-
-            # Train the discriminator
-            d_loss_real = self.discriminator.train_on_batch(imgs, valid)
-            d_loss_fake = self.discriminator.train_on_batch(gen_imgs, fake)
-            d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
-
-            # ---------------------
-            #  Train Generator
-            # ---------------------
-
-            myNoise = np.random.normal(0, 1, (batch_size, self.latent_dim))
-
-            # Train the generator (to have the discriminator label samples as valid)
-            for _ in range(3):
-                g_loss = self.combined.train_on_batch(myNoise, valid)
-
-            # Plot the progress
-            print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
-
-            # If at save interval => save generated image samples
-            if epoch % sample_interval == 0:
-                self.sample_images(epoch, noise_type)
+        except Exception as e:
+            print("An error occurred during training:")
+            traceback.print_exc()
 
     def sample_images(self, epoch, noise_type='random'):
-        r, c = 5, 5
-        noise = np.random.normal(0, 1, (r * c, self.latent_dim))
+        try:
+            r, c = 5, 5
+            noise = np.random.normal(0, 1, (r * c, self.latent_dim))
 
-        if noise_type == 'perlin':
-            perlin_noise = np.empty((r * c, self.latent_dim))
-            for i in range(r * c):
-                for j in range(self.latent_dim):
-                    perlin_noise[i, j] = ns.pnoise2(i, j)
-            noise = perlin_noise
+            if noise_type == 'perlin':
+                perlin_noise = np.empty((r * c, self.latent_dim))
+                for i in range(r * c):
+                    for j in range(self.latent_dim):
+                        perlin_noise[i, j] = ns.pnoise2(i, j)
+                noise = perlin_noise
 
-        elif noise_type == 'simplex':
-            simplex_noise = np.empty((r * c, self.latent_dim))
-            for i in range(r * c):
-                for j in range(self.latent_dim):
-                    simplex_noise[i, j] = ns.snoise2(i, j)
-            noise = simplex_noise
+            elif noise_type == 'simplex':
+                simplex_noise = np.empty((r * c, self.latent_dim))
+                for i in range(r * c):
+                    for j in range(self.latent_dim):
+                        simplex_noise[i, j] = ns.snoise2(i, j)
+                noise = simplex_noise
 
-        gen_imgs = self.generator.predict(noise)
+            gen_imgs = self.generator.predict(noise)
 
-        # Rescale images 0 - 1
-        gen_imgs = 0.5 * gen_imgs + 0.5
+            # Rescale images 0 - 1
+            gen_imgs = 0.5 * gen_imgs + 0.5
 
-        fig, axs = plt.subplots(r, c)
-        cnt = 0
-        for i in range(r):
-            for j in range(c):
-                axs[i, j].imshow(gen_imgs[cnt, :, :, :])
-                axs[i,j].axis('off')
-                cnt += 1
+            fig, axs = plt.subplots(r, c)
+            cnt = 0
+            for i in range(r):
+                for j in range(c):
+                    axs[i, j].imshow(gen_imgs[cnt, :, :, :])
+                    axs[i, j].axis('off')
+                    cnt += 1
 
-        output_dir = "C:/.develop/bakalarka/data/output/" + noise_type
-        os.makedirs(output_dir, exist_ok=True)  # Create the output directory if it doesn't exist
+            output_dir = "C:/.develop/bakalarka/data/output/" + noise_type
+            os.makedirs(output_dir, exist_ok=True)  # Create the output directory if it doesn't exist
 
-        fig.savefig(os.path.join(output_dir, "%d.png" % epoch))
-        plt.close()
+            fig.savefig(os.path.join(output_dir, "%d.png" % epoch))
+            plt.close()
+
+        except Exception as e:
+            print("Při vzorkování obrázků došlo k chybě:")
+            traceback.print_exc()
 
         # Ulož si své váhy
-        weights_dir = 'C:/.develop/bakalarka\data/weights/'
+        weights_dir = 'C:/.develop/bakalarka/data/weights/'
         os.makedirs(weights_dir, exist_ok=True)
         weights_path = os.path.join(weights_dir, 'weights.h5')
         gan.generator.save_weights(weights_path)
@@ -226,20 +220,19 @@ class GAN():
 if __name__ == '__main__':
     gan = GAN()
 
-    # trénovací / generovací (train/generate)
-    mode = 'train'
     # random,perlin noise, simplex noise (random/perlin/simplex)
-    noise_type = 'simplex'
+    noise_type = 'random'
 
-
+    # trénovací / generovací (train/generate)
+    mode = 'generate'
 
     if mode == 'train':
-        gan.train(epochs=300000, batch_size=32, sample_interval=200, noise_type=noise_type)
+        gan.train(epochs=10000, batch_size=32, sample_interval=200, noise_type=noise_type)
 
     elif mode == 'generate':
         # načti váhy
-        weights_path = 'data/weights/weights.h5'
-        gan.build_generator()
+        weights_path = 'C:/.develop/bakalarka/data/weights/weights.h5'
+        gan.build_generator(noise_type)
         gan.generator.load_weights(weights_path)
 
         # Generuj
