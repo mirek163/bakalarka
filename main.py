@@ -57,41 +57,42 @@ class GAN():
         self.combined = Model(z, validity)
         self.combined.compile(loss='binary_crossentropy', optimizer=optimizer)
 
-
-    def build_generator(self, noise_type='random'):
-
+    def build_generator(self, noise_type):
         model = Sequential()
-
         model.add(Dense(256, input_dim=self.latent_dim))
         model.add(LeakyReLU(alpha=0.2))
-        model.add(BatchNormalization(momentum=0.8))
+        model.add(BatchNormalization(momentum=0.8))  # Set training=True during training
         model.add(Dense(512))
         model.add(LeakyReLU(alpha=0.2))
-        model.add(BatchNormalization(momentum=0.8))
+        model.add(BatchNormalization(momentum=0.8))  # Set training=True during training
         model.add(Dense(1024))
         model.add(LeakyReLU(alpha=0.2))
-        model.add(BatchNormalization(momentum=0.8))
+        model.add(BatchNormalization(momentum=0.8))  # Set training=True during training
+
+
         model.add(Dense(np.prod(self.img_shape), activation='tanh'))
         model.add(Reshape(self.img_shape))
-
         model.summary()
 
         noise = Input(shape=(self.latent_dim,))
         if noise_type == 'perlin':
             perlin_noise = np.empty((self.latent_dim,))
             for i in range(self.latent_dim):
-                perlin_noise[i] = noise.pnoise2(i, 0.1)
+                perlin_noise[i] = ns.pnoise2(i, 0.1)
             noise = perlin_noise
+            noise = noise.reshape((1, -1))  # Reshape the noise tensor to have a known shape
+
         elif noise_type == 'simplex':
             simplex_noise = np.empty((self.latent_dim,))
             for i in range(self.latent_dim):
-                simplex_noise[i] = noise.snoise1(i, 0.1)
+                simplex_noise[i] = ns.snoise2(i, 0.1)
             noise = simplex_noise
+            noise = noise.reshape((1, -1))  # Reshape the noise tensor to have a known shape
+
         else:
             noise = noise
 
         img = model(noise)
-
         return Model(noise, img)
 
     def build_discriminator(self):
@@ -135,7 +136,6 @@ class GAN():
 
         X_train = np.array(X_train)
         X_train = X_train / 127.5 - 1.
-        #print(X_train)
         X_train = X_train.reshape((-1, self.img_rows, self.img_cols, self.channels))
 
         # Adversarial ground truths
@@ -169,9 +169,8 @@ class GAN():
             myNoise = np.random.normal(0, 1, (batch_size, self.latent_dim))
 
             # Train the generator (to have the discriminator label samples as valid)
-            g_loss = self.combined.train_on_batch(myNoise, valid)
-            g_loss = self.combined.train_on_batch(myNoise, valid)
-            g_loss = self.combined.train_on_batch(myNoise, valid)
+            for _ in range(3):
+                g_loss = self.combined.train_on_batch(myNoise, valid)
 
             # Plot the progress
             print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
@@ -185,15 +184,17 @@ class GAN():
         noise = np.random.normal(0, 1, (r * c, self.latent_dim))
 
         if noise_type == 'perlin':
-            perlin_noise = np.empty((r * c,))
+            perlin_noise = np.empty((r * c, self.latent_dim))
             for i in range(r * c):
-                perlin_noise[i] = ns.pnoise1(i)
+                for j in range(self.latent_dim):
+                    perlin_noise[i, j] = ns.pnoise2(i, j)
             noise = perlin_noise
 
         elif noise_type == 'simplex':
-            simplex_noise = np.empty((r * c,))
+            simplex_noise = np.empty((r * c, self.latent_dim))
             for i in range(r * c):
-                simplex_noise[i] = ns.snoise1(i)
+                for j in range(self.latent_dim):
+                    simplex_noise[i, j] = ns.snoise2(i, j)
             noise = simplex_noise
 
         gen_imgs = self.generator.predict(noise)
@@ -227,10 +228,13 @@ if __name__ == '__main__':
 
     # trénovací / generovací (train/generate)
     mode = 'train'
+    # random,perlin noise, simplex noise (random/perlin/simplex)
+    noise_type = 'simplex'
+
+
 
     if mode == 'train':
-        gan.train(epochs=300000, batch_size=32, sample_interval=200, noise_type='random')
-
+        gan.train(epochs=300000, batch_size=32, sample_interval=200, noise_type=noise_type)
 
     elif mode == 'generate':
         # načti váhy
@@ -240,5 +244,5 @@ if __name__ == '__main__':
 
         # Generuj
         epoch_number = 10000  # Počet epoch
-        noise_type = 'random'  # Typ noise
+        noise_type = noise_type  # Typ noise
         gan.sample_images(epoch_number, noise_type)
