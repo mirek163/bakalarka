@@ -164,7 +164,19 @@ class GAN():
                 imgs = X_train[idx]
 
                 # Generování šumu pro generátor
-                myNoise = np.random.normal(0, 1, (batch_size, self.latent_dim))
+                if noise_type == 'perlin':
+                    scale = 10.0
+                    myNoise = np.zeros((batch_size, self.latent_dim))
+                    for i in range(batch_size):
+                        x = np.random.uniform(0, 1)
+                        y = np.random.uniform(0, 1)
+                        myNoise[i] = ns.pnoise2(x, y, octaves=6, persistence=0.5, lacunarity=2.0, repeatx=1024,
+                                                   repeaty=1024, base=0) * scale
+                elif noise_type == 'simplex':
+                    scale = 10.0
+                    myNoise = np.random.uniform(-scale, scale, (batch_size, self.latent_dim))
+                else:
+                    myNoise = np.random.normal(0, 1, (batch_size, self.latent_dim))
 
                 # Generování obrázků pomocí generátoru
                 gen_imgs = self.generator.predict(myNoise)
@@ -173,8 +185,8 @@ class GAN():
                 imgs = np.reshape(imgs, (batch_size, self.img_rows, self.img_cols, self.channels))
 
                 # Trénování diskriminátoru na reálných a generovaných obrázcích
-                d_loss_real = self.discriminator.train_on_batch(imgs, np.ones((batch_size, 1)))
-                d_loss_fake = self.discriminator.train_on_batch(gen_imgs, np.zeros((batch_size, 1)))
+                d_loss_real = self.discriminator.train_on_batch(imgs, valid)
+                d_loss_fake = self.discriminator.train_on_batch(gen_imgs, fake)
 
                 # Celková ztráta diskriminátoru
                 d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
@@ -184,15 +196,27 @@ class GAN():
                 # ---------------------
 
                 # Generování šumu pro kombinovaný model
-                myNoise = np.random.normal(0, 1, (batch_size, self.latent_dim))
+                if noise_type == 'perlin':
+                    scale = 10.0
+                    myNoise = np.zeros((batch_size, self.latent_dim))
+                    for i in range(batch_size):
+                        x = np.random.uniform(0, 1)
+                        y = np.random.uniform(0, 1)
+                        myNoise[i] = ns.pnoise2(x, y, octaves=6, persistence=0.5, lacunarity=2.0, repeatx=1024,
+                                                repeaty=1024, base=0) * scale
+                elif noise_type == 'simplex':
+                    scale = 10.0
+                    myNoise = np.random.uniform(-scale, scale, (batch_size, self.latent_dim))
+                else:
+                    myNoise = np.random.normal(0, 1, (batch_size, self.latent_dim))
 
                 for _ in range(3):
-                # Trénování generátoru (pouze generátor, diskriminátor je zamražen)
+                    # Trénování generátoru (pouze generátor, diskriminátor je zamražen)
                     g_loss = self.combined.train_on_batch(myNoise, valid)
 
                 # Výpis průběhu trénování
                 print("%d [Ztráta disk.: %f, přesnost: %.2f%%] [Ztráta gen.: %f]" % (
-                epoch, d_loss[0], 100 * d_loss[1], g_loss))
+                    epoch, d_loss[0], 100 * d_loss[1], g_loss))
 
                 # Ukládání generovaných obrázků v pravidelných intervalech
                 if epoch % sample_interval == 0:
@@ -201,7 +225,6 @@ class GAN():
         except Exception as e:
             print("Při trénování došlo k chybě,, máš dobře adresu k datasetu? :")
             traceback.print_exc()
-
 
     def sample_images(self, epoch, noise_type='random'):
         """
@@ -255,7 +278,7 @@ class GAN():
 
         # Uložení vah
         weights_dir = 'C:/.develop/bakalarka/data/weights/'
-        os.makedirs(weights_dir, exist_ok=True) # Vytvoření výstupního adresáře, pokud neexistuje
+        os.makedirs(weights_dir, exist_ok=True)  # Vytvoření výstupního adresáře, pokud neexistuje
         weights_path = os.path.join(weights_dir, 'weights.h5')
         gan.generator.save_weights(weights_path)
 
@@ -263,15 +286,15 @@ class GAN():
 if __name__ == '__main__':
     gan = GAN()
 
-#-------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------
 
     # Typ šumu: random, perlin noise, simplex noise (random/perlin/simplex)
     noise_type = 'random'
 
     # Režim: trénovací / generovací (train/generate)
-    mode = 'generate'
+    mode = 'train'
 
-#-------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------
 
     if mode == 'train':
         gan.train(epochs=10000, batch_size=32, sample_interval=200, noise_type=noise_type)
@@ -287,4 +310,3 @@ if __name__ == '__main__':
         noise_type = noise_type  # Typ šumu
 
         gan.sample_images(epoch_number, noise_type)
-
