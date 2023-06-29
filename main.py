@@ -1,120 +1,136 @@
-from __future__ import print_function, division
-
-import os
-import traceback
-
-from keras.layers import Input, Dense, Reshape, \
-    Flatten  # Dropout ( musím pak vyzkoušet, jestli se budou generovat lepší model.add(Dropout(0.5)))
-
-from keras.layers import BatchNormalization  # Activation, ZeroPadding2D
-from keras.layers import LeakyReLU  # ELU, PReLU
-from keras.models import Sequential, Model
-from keras.optimizers import Adam
-
-import matplotlib.pyplot as plt
-
-import glob
-from PIL import Image
-
-import noise as ns
-import numpy as np
+from __future__ import print_function, division  # Pro kompatibilitu s Python 2
+import os  # Manipulace se souborovým systémem
+import traceback  # Výpis trasování chyb
+from keras.layers import Input, Dense, Reshape, Flatten  # Vrstvy modelu Keras
+from keras.layers import BatchNormalization, LeakyReLU
+from keras.models import Sequential, Model  # Modely Keras
+from keras.optimizers import Adam  # Optimalizátor Adam
+import matplotlib.pyplot as plt  # Vykreslování obrázků
+import glob  # Vyhledávání souborů v adresáři
+from PIL import Image  # Práce s obrázky
+import noise as ns  # Generování šumu
+import numpy as np  # Matematické operace s poli
+import tensorflow as tf
 
 
 class GAN():
     def __init__(self, noise_type='random'):
+        # Velikost vstupního obrázku
         self.img_rows = 64
         self.img_cols = 64
         self.channels = 3
         self.img_shape = (self.img_rows, self.img_cols, self.channels)
+        # Dimenze latentního vektoru
         self.latent_dim = 100
         self.noise_type = noise_type
 
         optimizer = Adam(0.0002, 0.5)
 
-        # Build and compile the discriminator
+        # Sestavení a kompilace diskriminátoru
         self.discriminator = self.build_discriminator()
         self.discriminator.compile(loss='binary_crossentropy',
                                    optimizer=optimizer,
                                    metrics=['accuracy'])
 
-        # Build the generator
+        # Sestavení generátoru
         self.generator = self.build_generator(noise_type=self.noise_type)
 
-        # The generator takes noise as input and generates imgs
+        # Generátor přijímá šum jako vstup a generuje obrázky
         z = Input(shape=(self.latent_dim,))
         img = self.generator(z)
 
-        # For the combined model we will only train the generator
+        # Při kombinovaném modelu budeme trénovat pouze generátor
         self.discriminator.trainable = False
 
-        # The discriminator takes generated images as input and determines validity
+        # Diskriminátor přijímá vygenerované obrázky jako vstup a určuje jejich validitu
         validity = self.discriminator(img)
 
-        # The combined model  (stacked generator and discriminator)
-        # Trains the generator to fool the discriminator
+        # Kombinovaný model (generátor a diskriminátor)
+        # Trénuje generátor, aby přelstil diskriminátor
         self.combined = Model(z, validity)
         self.combined.compile(loss='binary_crossentropy', optimizer=optimizer)
 
     def build_generator(self, noise_type):
-        model = Sequential()
-        model.add(Dense(256, input_dim=self.latent_dim))
-        model.add(LeakyReLU(alpha=0.2))
-        model.add(BatchNormalization(momentum=0.8))  # Set training=True during training
-        model.add(Dense(512))
-        model.add(LeakyReLU(alpha=0.2))
-        model.add(BatchNormalization(momentum=0.8))  # Set training=True during training
-        model.add(Dense(1024))
-        model.add(LeakyReLU(alpha=0.2))
-        model.add(BatchNormalization(momentum=0.8))  # Set training=True during training
+        """
+        Metoda pro vytvoření a sestavení generátoru modelu.
 
-        model.add(Dense(np.prod(self.img_shape), activation='tanh'))
-        model.add(Reshape(self.img_shape))
-        model.summary()
+        Parametry:
+        - noise_type: Typ šumu pro generátor (random/perlin/simplex)
+        """
+        model = Sequential()  # Vytvoření sekvenčního modelu Keras
 
-        noise = Input(shape=(self.latent_dim,))
+        # Vrstvy generátoru
+        model.add(Dense(256, input_dim=self.latent_dim))  # Plně propojená vrstva s 256 jednotkami
+        model.add(LeakyReLU(alpha=0.2))  # Aktivační funkce LeakyReLU s parametrem alpha=0.2
+        model.add(BatchNormalization(momentum=0.8))  # Normalizace dávkou s parametrem momentum=0.8
+        model.add(Dense(512))  # Plně propojená vrstva s 512 jednotkami
+        model.add(LeakyReLU(alpha=0.2))  # Aktivační funkce LeakyReLU s parametrem alpha=0.2
+        model.add(BatchNormalization(momentum=0.8))  # Normalizace dávkou s parametrem momentum=0.8
+        model.add(Dense(1024))  # Plně propojená vrstva s 1024 jednotkami
+        model.add(LeakyReLU(alpha=0.2))  # Aktivační funkce LeakyReLU s parametrem alpha=0.2
+        model.add(BatchNormalization(momentum=0.8))  # Normalizace dávkou s parametrem momentum=0.8
+        model.add(Dense(np.prod(self.img_shape), activation='tanh'))  # Plně propojená vrstva s aktivací tanh
+        model.add(Reshape(self.img_shape))  # Změna tvaru na velikost obrázku
+        model.summary()  # Výpis shrnutí modelu
+
+        noise = tf.keras.Input(shape=(self.latent_dim,))  # Vstup pro šum
         if noise_type == 'perlin':
             perlin_noise = np.empty((self.latent_dim,))
             for i in range(self.latent_dim):
-                perlin_noise[i] = ns.pnoise2(i, 0.1)
+                perlin_noise[i] = ns.pnoise2(i, 0.1)  # Generování Perlinova šumu
             noise = perlin_noise
-            noise = noise.reshape((1, -1))  # Reshape the noise tensor to have a known shape
-
+            noise = noise.reshape((1, -1))  # Změna tvaru na (1, latent_dim)
         elif noise_type == 'simplex':
             simplex_noise = np.empty((self.latent_dim,))
             for i in range(self.latent_dim):
-                simplex_noise[i] = ns.snoise2(i, 0.1)
+                simplex_noise[i] = ns.snoise2(i, 0.1)  # Generování simplexního šumu
             noise = simplex_noise
-            noise = noise.reshape((1, -1))  # Reshape the noise tensor to have a known shape
-
+            noise = noise.reshape((1, -1))  # Změna tvaru na (1, latent_dim)
         else:
-            noise = noise
+            noise = noise  # Vstupní šum
 
-        img = model(noise)
-        return Model(noise, img)
+        img = model(noise)  # Generování obrázku pomocí modelu
+        return tf.keras.Model(noise, img)  # Vytvoření konečného modelu s vstupem noise a výstupem img
 
     def build_discriminator(self):
+        """
+        Metoda pro vytvoření a sestavení diskriminátoru modelu.
+        """
+        model = Sequential()  # Vytvoření sekvenčního modelu Keras
 
-        model = Sequential()
+        # Vrstvy diskriminátoru
+        model.add(Flatten(input_shape=self.img_shape))  # Plošná vrstva pro rovnání vstupního obrazu
+        model.add(Dense(512))  # Plně propojená vrstva s 512 jednotkami
+        model.add(LeakyReLU(alpha=0.2))  # Aktivační funkce LeakyReLU s parametrem alpha=0.2
+        model.add(Dense(256))  # Plně propojená vrstva s 256 jednotkami
+        model.add(LeakyReLU(alpha=0.2))  # Aktivační funkce LeakyReLU s parametrem alpha=0.2
+        model.add(Dense(1, activation='sigmoid'))  # Plně propojená vrstva s aktivací sigmoid
 
-        model.add(Flatten(input_shape=self.img_shape))
-        model.add(Dense(512))
-        model.add(LeakyReLU(alpha=0.2))
-        model.add(Dense(256))
-        model.add(LeakyReLU(alpha=0.2))
-        model.add(Dense(1, activation='sigmoid'))
-        model.summary()
+        model.summary()  # Výpis shrnutí modelu
 
-        img = Input(shape=self.img_shape)
-        validity = model(img)
+        img = tf.keras.Input(shape=self.img_shape)  # Vstup pro obraz
+        validity = model(img)  # Výstup diskriminátoru
 
-        return Model(img, validity)
+        return Model(img, validity)  # Vytvoření modelu s vstupem img a výstupem validity
 
     def train(self, epochs, batch_size=128, sample_interval=50, noise_type='random'):
+        """
+        Metoda pro trénování modelu.
+
+        Parametry:
+        - epochs: Celkový počet epoch (iterací) pro trénování modelu.
+        - batch_size: Velikost dávky obrázků použitých při každé iteraci trénování.
+        - sample_interval: Počet epoch mezi výstupy generátoru (generované obrázky) pro vizuální kontrolu.
+        - noise_type: Typ šumu použitý při generování obrázků. Možné hodnoty jsou 'random' (náhodný šum),
+          'perlin' (Perlinův šum) a 'simplex' (simplexový šum).
+        """
         try:
-            image_files = glob.glob("C:/.develop/bakalarka/data/crack/*.jpg")
+            # Načtení obrázků ze složky
+            image_files = glob.glob("C:/.develop/bakalarka/data/input/crack/*.jpg")
             X_train = []
             for image_file in image_files:
                 try:
+                    # Otevření obrázku, úprava velikosti a konverze do RGB formátu
                     image = Image.open(image_file).convert('RGB')
                     width, height = image.size
                     size = min(width, height)
@@ -127,48 +143,76 @@ class GAN():
                     image = np.array(image)
                     X_train.append(image)
                 except Exception as e:
-                    print("An error occurred while loading the image from the dataset:", image_file)
+                    print("Při načítání obrázku ze sady došlo k chybě:", image_file)
                     traceback.print_exc()
 
             X_train = np.array(X_train)
-            X_train = X_train / 127.5 - 1.
+            X_train = X_train / 127.5 - 1.  # Normalizace hodnot obrázků do rozsahu [-1, 1]
             X_train = X_train.reshape((-1, self.img_rows, self.img_cols, self.channels))
 
-            # Adversarial ground truths
+            # Definování pravdivostních hodnot pro trénování diskriminátoru
             valid = np.ones((batch_size, 1))
             fake = np.zeros((batch_size, 1))
 
             for epoch in range(epochs):
                 # ---------------------
-                #  Train Discriminator
+                #  Trénování diskriminátoru
                 # ---------------------
+
+                # Výběr náhodných obrázků z trénovacího datasetu
                 idx = np.random.randint(0, X_train.shape[0], batch_size)
                 imgs = X_train[idx]
+
+                # Generování šumu pro generátor
                 myNoise = np.random.normal(0, 1, (batch_size, self.latent_dim))
+
+                # Generování obrázků pomocí generátoru
                 gen_imgs = self.generator.predict(myNoise)
-                d_loss_real = self.discriminator.train_on_batch(imgs, valid)
-                d_loss_fake = self.discriminator.train_on_batch(gen_imgs, fake)
+
+                # Úprava tvaru obrázků pro diskriminátor
+                imgs = np.reshape(imgs, (batch_size, self.img_rows, self.img_cols, self.channels))
+
+                # Trénování diskriminátoru na reálných a generovaných obrázcích
+                d_loss_real = self.discriminator.train_on_batch(imgs, np.ones((batch_size, 1)))
+                d_loss_fake = self.discriminator.train_on_batch(gen_imgs, np.zeros((batch_size, 1)))
+
+                # Celková ztráta diskriminátoru
                 d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
 
                 # ---------------------
-                #  Train Generator
+                #  Trénování generátoru
                 # ---------------------
+
+                # Generování šumu pro kombinovaný model
                 myNoise = np.random.normal(0, 1, (batch_size, self.latent_dim))
+
                 for _ in range(3):
+                # Trénování generátoru (pouze generátor, diskriminátor je zamražen)
                     g_loss = self.combined.train_on_batch(myNoise, valid)
 
-                # Plot the progress
-                print("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100 * d_loss[1], g_loss))
+                # Výpis průběhu trénování
+                print("%d [Ztráta disk.: %f, přesnost: %.2f%%] [Ztráta gen.: %f]" % (
+                epoch, d_loss[0], 100 * d_loss[1], g_loss))
 
-                # Save generated images
+                # Ukládání generovaných obrázků v pravidelných intervalech
                 if epoch % sample_interval == 0:
                     self.sample_images(epoch, noise_type)
 
         except Exception as e:
-            print("An error occurred during training:")
+            print("Při trénování došlo k chybě,, máš dobře adresu k datasetu? :")
             traceback.print_exc()
 
+
     def sample_images(self, epoch, noise_type='random'):
+        """
+        Metoda pro vzorkování a uložení vygenerovaných obrázků.
+
+
+        Parametry:
+        - epoch: Číslo epochy
+        - iteration: Číslo iterace
+        - noise_type: Typ šumu pro generátor (random/perlin/simplex)
+        """
         try:
             r, c = 5, 5
             noise = np.random.normal(0, 1, (r * c, self.latent_dim))
@@ -189,7 +233,7 @@ class GAN():
 
             gen_imgs = self.generator.predict(noise)
 
-            # Rescale images 0 - 1
+            # Přizpůsobení rozsahu obrázků na 0 - 1
             gen_imgs = 0.5 * gen_imgs + 0.5
 
             fig, axs = plt.subplots(r, c)
@@ -201,8 +245,7 @@ class GAN():
                     cnt += 1
 
             output_dir = "C:/.develop/bakalarka/data/output/" + noise_type
-            os.makedirs(output_dir, exist_ok=True)  # Create the output directory if it doesn't exist
-
+            os.makedirs(output_dir, exist_ok=True)  # Vytvoření výstupního adresáře, pokud neexistuje
             fig.savefig(os.path.join(output_dir, "%d.png" % epoch))
             plt.close()
 
@@ -210,9 +253,9 @@ class GAN():
             print("Při vzorkování obrázků došlo k chybě:")
             traceback.print_exc()
 
-        # Ulož si své váhy
+        # Uložení vah
         weights_dir = 'C:/.develop/bakalarka/data/weights/'
-        os.makedirs(weights_dir, exist_ok=True)
+        os.makedirs(weights_dir, exist_ok=True) # Vytvoření výstupního adresáře, pokud neexistuje
         weights_path = os.path.join(weights_dir, 'weights.h5')
         gan.generator.save_weights(weights_path)
 
@@ -220,22 +263,28 @@ class GAN():
 if __name__ == '__main__':
     gan = GAN()
 
-    # random,perlin noise, simplex noise (random/perlin/simplex)
-    noise_type = 'random'
+#-------------------------------------------------------------------------------
 
-    # trénovací / generovací (train/generate)
+    # Typ šumu: random, perlin noise, simplex noise (random/perlin/simplex)
+    noise_type = 'perlin'
+
+    # Režim: trénovací / generovací (train/generate)
     mode = 'generate'
+
+#-------------------------------------------------------------------------------
 
     if mode == 'train':
         gan.train(epochs=10000, batch_size=32, sample_interval=200, noise_type=noise_type)
 
     elif mode == 'generate':
-        # načti váhy
+        # Načtení vah
         weights_path = 'C:/.develop/bakalarka/data/weights/weights.h5'
         gan.build_generator(noise_type)
         gan.generator.load_weights(weights_path)
 
-        # Generuj
+        # Generování
         epoch_number = 10000  # Počet epoch
-        noise_type = noise_type  # Typ noise
+        noise_type = noise_type  # Typ šumu
+
         gan.sample_images(epoch_number, noise_type)
+
