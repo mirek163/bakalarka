@@ -266,7 +266,7 @@ if __name__ == '__main__':
 #-------------------------------------------------------------------------------
 
     # Typ šumu: random, perlin noise, simplex noise (random/perlin/simplex)
-    noise_type = 'perlin'
+    noise_type = 'random'
 
     # Režim: trénovací / generovací (train/generate)
     mode = 'generate'
@@ -283,7 +283,7 @@ if __name__ == '__main__':
         gan.generator.load_weights(weights_path)
 
         # Generování
-        epoch_number = 10000  # Počet epoch
+        epoch_number = 100000  # Počet epoch
         noise_type = noise_type  # Typ šumu
 
         gan.sample_images(epoch_number, noise_type)

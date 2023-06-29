@@ -11,6 +11,6 @@
 - [ ] **epochy** - Natrénovat síť pomocí datasetu při 100 000 epoch.
 - [ ] **dataset** - Importovat dataset s mapami pro další zpracování.
 - [ ] **Šumy(2)** - Prozkoumat a implementovat další typy šumu pro augmentaci dat + Implementovat algoritmy Perlin noise a simplex noise od základu.
+- [ ] **Struktura** - ROzdělit kod do více souboru pro lepší orientování.
 
-
-> Weights.h5 je natrenovaný na 10000 epoch ( neustále mi to padalo).
+> Weights.h5 je natrenovaný na 10000 epoch ( neustále mi to padalo), pro jistotu jsem soubor uložil do backup při neštastném přepsání.
