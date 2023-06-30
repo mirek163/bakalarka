@@ -228,26 +228,25 @@ class GAN():
         """
         Metoda pro vzorkování a uložení vygenerovaných obrázků.
 
-
         Parametry:
         - epoch: Číslo epochy
         - iteration: Číslo iterace
         - noise_type: Typ šumu pro generátor (random/perlin/simplex)
         """
         try:
-            r, c = 5, 5
-            noise = np.random.normal(0, 1, (r * c, self.latent_dim))
+            x, y = 3, 4 # V jakém gridu se budou obrázky generovat
+            noise = np.random.normal(0, 1, (x * y, self.latent_dim))
 
             if noise_type == 'perlin':
-                perlin_noise = np.empty((r * c, self.latent_dim))
-                for i in range(r * c):
+                perlin_noise = np.empty((x * y, self.latent_dim))
+                for i in range(x * y):
                     for j in range(self.latent_dim):
-                        perlin_noise[i, j] = ns.pnoise2(i/(r * c), j/(r * c))
+                        perlin_noise[i, j] = ns.pnoise2(i / (x * y), j / (x * y))
                 noise = perlin_noise
 
             elif noise_type == 'simplex':
-                simplex_noise = np.empty((r * c, self.latent_dim))
-                for i in range(r * c):
+                simplex_noise = np.empty((x * y, self.latent_dim))
+                for i in range(x * y):
                     for j in range(self.latent_dim):
                         simplex_noise[i, j] = ns.snoise2(i, j)
                 noise = simplex_noise
@@ -257,10 +256,10 @@ class GAN():
             # Přizpůsobení rozsahu obrázků na 0 - 1
             gen_imgs = 0.5 * gen_imgs + 0.5
 
-            fig, axs = plt.subplots(r, c)
+            fig, axs = plt.subplots(x, y)
             cnt = 0
-            for i in range(r):
-                for j in range(c):
+            for i in range(x):
+                for j in range(y):
                     axs[i, j].imshow(gen_imgs[cnt, :, :, :])
                     axs[i, j].axis('off')
                     cnt += 1
@@ -275,10 +274,10 @@ class GAN():
             traceback.print_exc()
 
         # Uložení vah
-        weights_dir = 'data/weights/'+noise_type+'/'
+        weights_dir = 'data/weights/' + noise_type + '/'
         os.makedirs(weights_dir, exist_ok=True)  # Vytvoření výstupního adresáře, pokud neexistuje
-        weights_path = os.path.join(weights_dir, 'weights.h5')
-        gan.generator.save_weights(weights_path)
+        weights_path = os.path.join(weights_dir, 'weights%d.h5' %epoch)
+        self.generator.save_weights(weights_path)
 
 
 if __name__ == '__main__':
