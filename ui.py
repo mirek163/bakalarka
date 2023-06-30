@@ -66,10 +66,10 @@ class GANUI:
 
         # Načtení vah
         weights_path = 'data/weights/'+noise_type+'/weights.h5'
-        self.gan.load_weights(weights_path) # zavolání funkce v main
+        self.gan.generator.load_weights(weights_path) # zavolání funkce v main
 
         # Generování obrázků
-        self.gan.sample_images(epoch_number, noise_type)
+        self.gan.sample_images(epoch_number, noise_type,mode='generate')
         image_path = f"data/output/{noise_type}/{epoch_number}.png" # zavolání funkce v main
 
         self.display_image(image_path)

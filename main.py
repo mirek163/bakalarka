@@ -224,7 +224,7 @@ class GAN():
             print("Při trénování došlo k chybě,, máš dobře adresu k datasetu? :")
             traceback.print_exc()
 
-    def sample_images(self, epoch, noise_type='random'):
+    def sample_images(self, epoch, noise_type='random', mode='train'):
         """
         Metoda pro vzorkování a uložení vygenerovaných obrázků.
 
@@ -272,15 +272,15 @@ class GAN():
         except Exception as e:
             print("Při vzorkování obrázků došlo k chybě:")
             traceback.print_exc()
+        if(mode!='generate'):
+            # Uložení vah
+            weights_dir = 'data/weights/' + noise_type + '/'
+            os.makedirs(weights_dir, exist_ok=True)  # Vytvoření výstupního adresáře, pokud neexistuje
+            weights_path = os.path.join(weights_dir, 'weights%d.h5' %epoch)
+            self.generator.save_weights(weights_path)
 
-        # Uložení vah
-        weights_dir = 'data/weights/' + noise_type + '/'
-        os.makedirs(weights_dir, exist_ok=True)  # Vytvoření výstupního adresáře, pokud neexistuje
-        weights_path = os.path.join(weights_dir, 'weights%d.h5' %epoch)
-        self.generator.save_weights(weights_path)
-
-    def load_weights(self, weights_file):
-        self.combined.load_weights(weights_file)
+    #def load_weights(self, weights_file):
+    #    self.combined.load_weights(weights_file)
 
 if __name__ == '__main__':
 
@@ -301,10 +301,10 @@ if __name__ == '__main__':
         # Načtení vah
         weights_path = 'data/weights/'+noise_type+'/weights.h5'
         # gan.build_generator(noise_type)
-        gan.load_weights(weights_path)
+        gan.generator.load_weights(weights_path)
 
         # Generování
         epoch_number = 100000  # Počet epoch
         noise_type = noise_type  # Typ šumu
 
-        gan.sample_images(epoch_number, noise_type)
+        gan.sample_images(epoch_number, noise_type,mode='generate')
