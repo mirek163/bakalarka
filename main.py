@@ -279,6 +279,8 @@ class GAN():
         weights_path = os.path.join(weights_dir, 'weights%d.h5' %epoch)
         self.generator.save_weights(weights_path)
 
+    def load_weights(self, weights_file):
+        self.combined.load_weights(weights_file)
 
 if __name__ == '__main__':
 
@@ -299,7 +301,7 @@ if __name__ == '__main__':
         # Načtení vah
         weights_path = 'data/weights/'+noise_type+'/weights.h5'
         # gan.build_generator(noise_type)
-        gan.generator.load_weights(weights_path)
+        gan.load_weights(weights_path)
 
         # Generování
         epoch_number = 100000  # Počet epoch

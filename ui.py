@@ -16,7 +16,7 @@ class GANUI:
         # ------------------------------------------------------
         noise_type = 'random'  # Výchozí typ šumu
         epoch_number = 100000  # Výchozí počet epoch
-        self.gan = GAN(noise_type)
+        self.gan = GAN()
 
         # ------------------------------------------------------
         # Nastavení okna
@@ -65,8 +65,8 @@ class GANUI:
         epoch_number = int(epoch_entry.get())
 
         # Načtení vah
-        weights_path = f"data/weights/{noise_type}/weights.h5"
-        self.gan.generator.load_weights(weights_path) # zavolání funkce v main
+        weights_path = 'data/weights/'+noise_type+'/weights.h5'
+        self.gan.load_weights(weights_path) # zavolání funkce v main
 
         # Generování obrázků
         self.gan.sample_images(epoch_number, noise_type)
