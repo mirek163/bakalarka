@@ -14,6 +14,7 @@ import tensorflow as tf
 
 
 class GAN():
+
     def __init__(self, noise_type='random'):
         # Velikost vstupního obrázku
         self.img_rows = 64
@@ -74,20 +75,18 @@ class GAN():
         model.summary()  # Výpis shrnutí modelu
 
         noise = Input(shape=(self.latent_dim,))  # Vstup pro šum
-        if noise_type == 'perlin':
-            perlin_noise = np.empty((self.latent_dim,))
-            for i in range(self.latent_dim):
-                perlin_noise[i] = ns.pnoise2(i, 0.1)  # Generování Perlinova šumu
-            noise = perlin_noise
-            noise = noise.reshape((1, -1))  # Změna tvaru na (1, latent_dim)
-        elif noise_type == 'simplex':
-            simplex_noise = np.empty((self.latent_dim,))
-            for i in range(self.latent_dim):
-                simplex_noise[i] = ns.snoise2(i, 0.1)  # Generování simplexního šumu
-            noise = simplex_noise
-            noise = noise.reshape((1, -1))  # Změna tvaru na (1, latent_dim)
-        else:
-            noise = noise  # Vstupní šum
+        # if noise_type == 'perlin':
+        #     perlin_noise = np.empty((self.latent_dim,))
+        #     for i in range(self.latent_dim):
+        #         perlin_noise[i] = ns.pnoise2(i, 0.1)  # Generování Perlinova šumu
+        #     noise = Input(shape=(self.latent_dim,), tensor=tf.convert_to_tensor(perlin_noise.reshape((1, -1)), dtype=np.float32))
+        # elif noise_type == 'simplex':
+        #     simplex_noise = np.empty((self.latent_dim,))
+        #     for i in range(self.latent_dim):
+        #         simplex_noise[i] = ns.snoise2(i, 0.1)  # Generování simplexního šumu
+        #     noise = Input(shape=(self.latent_dim,), tensor=tf.convert_to_tensor(simplex_noise.reshape((1, -1)), dtype=np.float32) )# Změna tvaru na (1, latent_dim)
+        # else:
+        #     noise = noise  # Vstupní šum
 
         img = model(noise)  # Generování obrázku pomocí modelu
         return Model(noise, img)  # Vytvoření konečného modelu s vstupem noise a výstupem img
@@ -244,7 +243,7 @@ class GAN():
                 perlin_noise = np.empty((r * c, self.latent_dim))
                 for i in range(r * c):
                     for j in range(self.latent_dim):
-                        perlin_noise[i, j] = ns.pnoise2(i, j)
+                        perlin_noise[i, j] = ns.pnoise2(i/(r * c), j/(r * c))
                 noise = perlin_noise
 
             elif noise_type == 'simplex':
@@ -277,32 +276,31 @@ class GAN():
             traceback.print_exc()
 
         # Uložení vah
-        weights_dir = 'data/weights/'
+        weights_dir = 'data/weights/'+noise_type+'/'
         os.makedirs(weights_dir, exist_ok=True)  # Vytvoření výstupního adresáře, pokud neexistuje
         weights_path = os.path.join(weights_dir, 'weights.h5')
         gan.generator.save_weights(weights_path)
 
 
 if __name__ == '__main__':
-    gan = GAN()
-
-    # -------------------------------------------------------------------------------
 
     # Typ šumu: random, perlin noise, simplex noise (random/perlin/simplex)
-    noise_type = 'random'
+    # noise_type = 'random'
+    noise_type = 'perlin'
 
     # Režim: trénovací / generovací (train/generate)
-    mode = 'train'
+    # mode = 'train'
+    mode = 'generate'
 
-    # -------------------------------------------------------------------------------
+    gan = GAN(noise_type)
 
     if mode == 'train':
         gan.train(epochs=10000, batch_size=32, sample_interval=200, noise_type=noise_type)
 
     elif mode == 'generate':
         # Načtení vah
-        weights_path = 'data/weights/weights.h5'
-        gan.build_generator(noise_type)
+        weights_path = 'data/weights/'+noise_type+'/weights.h5'
+        # gan.build_generator(noise_type)
         gan.generator.load_weights(weights_path)
 
         # Generování
