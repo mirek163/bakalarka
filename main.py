@@ -10,7 +10,6 @@ import glob  # Vyhledávání souborů v adresáři
 from PIL import Image  # Práce s obrázky
 import noise as ns  # Generování šumu
 import numpy as np  # Matematické operace s poli
-import tensorflow as tf
 
 
 class GAN():
