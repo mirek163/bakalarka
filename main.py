@@ -73,7 +73,7 @@ class GAN():
         model.add(Reshape(self.img_shape))  # Změna tvaru na velikost obrázku
         model.summary()  # Výpis shrnutí modelu
 
-        noise = tf.keras.Input(shape=(self.latent_dim,))  # Vstup pro šum
+        noise = Input(shape=(self.latent_dim,))  # Vstup pro šum
         if noise_type == 'perlin':
             perlin_noise = np.empty((self.latent_dim,))
             for i in range(self.latent_dim):
@@ -90,7 +90,7 @@ class GAN():
             noise = noise  # Vstupní šum
 
         img = model(noise)  # Generování obrázku pomocí modelu
-        return tf.keras.Model(noise, img)  # Vytvoření konečného modelu s vstupem noise a výstupem img
+        return Model(noise, img)  # Vytvoření konečného modelu s vstupem noise a výstupem img
 
     def build_discriminator(self):
         """
@@ -108,7 +108,7 @@ class GAN():
 
         model.summary()  # Výpis shrnutí modelu
 
-        img = tf.keras.Input(shape=self.img_shape)  # Vstup pro obraz
+        img = Input(shape=self.img_shape)  # Vstup pro obraz
         validity = model(img)  # Výstup diskriminátoru
 
         return Model(img, validity)  # Vytvoření modelu s vstupem img a výstupem validity
@@ -126,7 +126,7 @@ class GAN():
         """
         try:
             # Načtení obrázků ze složky
-            image_files = glob.glob("C:/.develop/bakalarka/data/input/crack/*.jpg")
+            image_files = glob.glob("data/input/crack/*.jpg")
             X_train = []
             for image_file in image_files:
                 try:
@@ -267,7 +267,7 @@ class GAN():
                     axs[i, j].axis('off')
                     cnt += 1
 
-            output_dir = "C:/.develop/bakalarka/data/output/" + noise_type
+            output_dir = "data/output/" + noise_type
             os.makedirs(output_dir, exist_ok=True)  # Vytvoření výstupního adresáře, pokud neexistuje
             fig.savefig(os.path.join(output_dir, "%d.png" % epoch))
             plt.close()
@@ -277,7 +277,7 @@ class GAN():
             traceback.print_exc()
 
         # Uložení vah
-        weights_dir = 'C:/.develop/bakalarka/data/weights/'
+        weights_dir = 'data/weights/'
         os.makedirs(weights_dir, exist_ok=True)  # Vytvoření výstupního adresáře, pokud neexistuje
         weights_path = os.path.join(weights_dir, 'weights.h5')
         gan.generator.save_weights(weights_path)
@@ -301,7 +301,7 @@ if __name__ == '__main__':
 
     elif mode == 'generate':
         # Načtení vah
-        weights_path = 'C:/.develop/bakalarka/data/weights/weights.h5'
+        weights_path = 'data/weights/weights.h5'
         gan.build_generator(noise_type)
         gan.generator.load_weights(weights_path)
 
