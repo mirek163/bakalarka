@@ -169,7 +169,7 @@ class GAN():
                         x = np.random.uniform(0, 1)
                         y = np.random.uniform(0, 1)
                         myNoise[i] = ns.pnoise2(x, y, octaves=6, persistence=0.5, lacunarity=2.0, repeatx=1024,
-                                                   repeaty=1024, base=0) * scale
+                                                repeaty=1024, base=0) * scale
                 elif noise_type == 'simplex':
                     scale = 10.0
                     myNoise = np.random.uniform(-scale, scale, (batch_size, self.latent_dim))
@@ -234,7 +234,7 @@ class GAN():
         - noise_type: Typ šumu pro generátor (random/perlin/simplex)
         """
         try:
-            x, y = 3, 4 # V jakém gridu se budou obrázky generovat
+            x, y = 3, 4  # V jakém gridu se budou obrázky generovat
             noise = np.random.normal(0, 1, (x * y, self.latent_dim))
 
             if noise_type == 'perlin':
@@ -272,15 +272,16 @@ class GAN():
         except Exception as e:
             print("Při vzorkování obrázků došlo k chybě:")
             traceback.print_exc()
-        if(mode!='generate'):
+        if mode != 'generate':
             # Uložení vah
             weights_dir = 'data/weights/' + noise_type + '/'
             os.makedirs(weights_dir, exist_ok=True)  # Vytvoření výstupního adresáře, pokud neexistuje
-            weights_path = os.path.join(weights_dir, 'weights%d.h5' %epoch)
+            weights_path = os.path.join(weights_dir, 'weights%d.h5' % epoch)
             self.generator.save_weights(weights_path)
 
-    #def load_weights(self, weights_file):
+    # def load_weights(self, weights_file):
     #    self.combined.load_weights(weights_file)
+
 
 if __name__ == '__main__':
 
@@ -295,11 +296,11 @@ if __name__ == '__main__':
     gan = GAN(noise_type)
 
     if mode == 'train':
-        gan.train(epochs=10000, batch_size=32, sample_interval=200, noise_type=noise_type)
+        gan.train(epochs=10000, batch_size=32, sample_interval=20, noise_type=noise_type)
 
     elif mode == 'generate':
         # Načtení vah
-        weights_path = 'data/weights/'+noise_type+'/weights.h5'
+        weights_path = 'data/weights/' + noise_type + '/weights.h5'
         # gan.build_generator(noise_type)
         gan.generator.load_weights(weights_path)
 
@@ -307,4 +308,4 @@ if __name__ == '__main__':
         epoch_number = 100000  # Počet epoch
         noise_type = noise_type  # Typ šumu
 
-        gan.sample_images(epoch_number, noise_type,mode='generate')
+        gan.sample_images(epoch_number, noise_type, mode='generate')
