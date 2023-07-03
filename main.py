@@ -1,6 +1,5 @@
 from __future__ import print_function, division  # Pro kompatibilitu s Python 2
 import os  # Manipulace se souborovým systémem
-import re
 import traceback  # Výpis trasování chyb
 from keras.layers import Input, Dense, Reshape, Flatten  # Vrstvy modelu Keras
 from keras.layers import BatchNormalization, LeakyReLU
@@ -9,11 +8,16 @@ from keras.optimizers import Adam  # Optimalizátor Adam
 import matplotlib.pyplot as plt  # Vykreslování obrázků
 import glob  # Vyhledávání souborů v adresáři
 from PIL import Image  # Práce s obrázky
-import noise as ns  # Generování šumu
+# import noise as ns  # Generování šumu
 import numpy as np  # Matematické operace s poli
+
+import noises
 
 DATASET = 'data/input/crack/'
 LATENT_DIM = 100
+
+
+
 
 class GAN():
 
@@ -78,19 +82,6 @@ class GAN():
         model.summary()  # Výpis shrnutí modelu
 
         noise = Input(shape=(self.LATENT_DIM,))  # Vstup pro šum
-
-        # if noise_type == 'perlin':
-        #     perlin_noise = np.empty((self.LATENT_DIM,))
-        #     for i in range(self.LATENT_DIM):
-        #         perlin_noise[i] = ns.pnoise2(i, 0.1)  # Generování Perlinova šumu
-        #     noise = Input(shape=(self.LATENT_DIM,), tensor=tf.convert_to_tensor(perlin_noise.reshape((1, -1)), dtype=np.float32))
-        # elif noise_type == 'simplex':
-        #     simplex_noise = np.empty((self.LATENT_DIM,))
-        #     for i in range(self.LATENT_DIM):
-        #         simplex_noise[i] = ns.snoise2(i, 0.1)  # Generování simplexního šumu
-        #     noise = Input(shape=(self.LATENT_DIM,), tensor=tf.convert_to_tensor(simplex_noise.reshape((1, -1)), dtype=np.float32) )# Změna tvaru na (1, LATENT_DIM)
-        # else:
-        #     noise = noise  # Vstupní šum
 
         img = model(noise)  # Generování obrázku pomocí modelu
         return Model(noise, img)  # Vytvoření konečného modelu s vstupem noise a výstupem img
@@ -179,22 +170,29 @@ class GAN():
                 imgs = X_train[idx]
 
                 # Generování šumu pro generátor
+
+                # if noise_type == 'perlin':
+                #     scale = 10.0
+                #     my_noise = np.zeros((batch_size, self.LATENT_DIM))
+                #     for i in range(batch_size):
+                #         x = np.random.uniform(0, 1000)
+                #         y = np.random.uniform(0, 1000)
+                #         my_noise[i] = ns.pnoise2(x, y, octaves=6, persistence=0.5, lacunarity=2.0, repeatx=1024,
+                #                                 repeaty=1024, base=0) * scale
+
                 if noise_type == 'perlin':
-                    scale = 10.0
-                    myNoise = np.zeros((batch_size, self.LATENT_DIM))
-                    for i in range(batch_size):
-                        x = np.random.uniform(0, 1000)
-                        y = np.random.uniform(0, 1000)
-                        myNoise[i] = ns.pnoise2(x, y, octaves=6, persistence=0.5, lacunarity=2.0, repeatx=1024,
-                                                repeaty=1024, base=0) * scale
+                    my_noise = noises.perlin_noise((batch_size, self.LATENT_DIM), scale=10, octaves=6,
+                                                   persistence=0.5, lacunarity=2.0)
                 elif noise_type == 'simplex':
-                    scale = 10.0
-                    myNoise = np.random.uniform(-scale, scale, (batch_size, self.LATENT_DIM))
+                    my_noise = noises.simplex_noise((batch_size, self.LATENT_DIM), scale=10, octaves=6,
+                                                    persistence=0.5, lacunarity=2)
+
                 else:
-                    myNoise = np.random.normal(0, 1, (batch_size, self.LATENT_DIM))
+                    my_noise = np.random.normal(0, 1, (batch_size, self.LATENT_DIM))
+
 
                 # Generování obrázků pomocí generátoru
-                gen_imgs = self.generator.predict(myNoise)
+                gen_imgs = self.generator.predict(my_noise)
 
                 # Úprava tvaru obrázků pro diskriminátor
                 imgs = np.reshape(imgs, (batch_size, self.img_rows, self.img_cols, self.channels))
@@ -211,23 +209,22 @@ class GAN():
                 # ---------------------
 
                 # Generování šumu pro kombinovaný model
+
                 if noise_type == 'perlin':
                     scale = 10.0
-                    myNoise = np.zeros((batch_size, self.LATENT_DIM))
-                    for i in range(batch_size):
-                        x = np.random.uniform(0, 1000)
-                        y = np.random.uniform(0, 1000)
-                        myNoise[i] = ns.pnoise2(x, y, octaves=6, persistence=0.5, lacunarity=2.0, repeatx=1024,
-                                                repeaty=1024, base=0) * scale
+                    my_noise = noises.perlin_noise((batch_size, self.LATENT_DIM), scale=scale, octaves=6,
+                                                   persistence=0.5, lacunarity=2.0)
                 elif noise_type == 'simplex':
                     scale = 10.0
-                    myNoise = np.random.uniform(-scale, scale, (batch_size, self.LATENT_DIM))
+                    my_noise = noises.simplex_noise((batch_size, self.LATENT_DIM), scale=scale, octaves=6,
+                                                    persistence=0.5, lacunarity=2)
+
                 else:
-                    myNoise = np.random.normal(0, 1, (batch_size, self.LATENT_DIM))
+                    my_noise = np.random.normal(0, 1, (batch_size, self.LATENT_DIM))
 
                 for _ in range(3):
                     # Trénování generátoru (pouze generátor, diskriminátor je zamražen)
-                    g_loss = self.combined.train_on_batch(myNoise, valid)
+                    g_loss = self.combined.train_on_batch(my_noise, valid)
 
                 # Výpis průběhu trénování
                 print("%d [Ztráta disk.: %f, přesnost: %.2f%%] [Ztráta gen.: %f]" % (
@@ -251,31 +248,42 @@ class GAN():
         - noise_type: Typ šumu pro generátor (random/perlin/simplex)
         """
         try:
-            x, y = 3, 4 # V jakém gridu se budou obrázky generovat
-            #np.random.seed(0)
-            noise = np.random.normal(0, 1, (x * y, self.LATENT_DIM))
-            seed = np.random.randint(0, 10000)
+            x, y = 3, 4  # V jakém gridu se budou obrázky generovat
 
+            noise = np.random.normal(0, 1, (x * y, self.LATENT_DIM))
+            #seed = np.random.randint(0, 10000)
 
             if noise_type == 'perlin':
-                perlin_noise = np.empty((x * y, self.LATENT_DIM))
-                for i in range(x * y):
-                    for j in range(self.LATENT_DIM):
-                        perlin_noise[i, j] = ns.pnoise2(i / (x * y)+seed, j / (x * y)+seed)
+                perlin_noise = noises.perlin_noise((x * y, self.LATENT_DIM))
                 noise = perlin_noise
 
             elif noise_type == 'simplex':
-                simplex_noise = np.empty((x * y, self.LATENT_DIM))
-                for i in range(x * y):
-                    for j in range(self.LATENT_DIM):
-                        simplex_noise[i, j] = ns.snoise2(i+seed, j+seed)
+                simplex_noise = noises.simplex_noise((x * y, self.LATENT_DIM))
                 noise = simplex_noise
 
             print(noise)
+
+            # původní noise
+            if mode == 'generate':
+                fig, axs = plt.subplots(x, y)
+                cnt = 0
+                for i in range(x):
+                    for j in range(y):
+                        axs[i, j].imshow(
+                            noise[cnt, :].reshape((int(np.sqrt(self.LATENT_DIM)), int(np.sqrt(self.LATENT_DIM)))),
+                            cmap='gray')
+                        axs[i, j].axis('off')
+                        cnt += 1
+
+                output_dir = "data/output/" + noise_type
+                os.makedirs(output_dir, exist_ok=True)  # Vytvoření výstupního adresáře, pokud neexistuje
+                fig.savefig(os.path.join(output_dir, "o_%d.png" % epoch))
+                plt.close()
+
             gen_imgs = self.generator.predict(noise)
 
-            # Přizpůsobení rozsahu obrázků na 0 - 1
-            gen_imgs = 0.5 * gen_imgs + 0.5
+            # Přizpůsobení rozsahu obrázků na 0 - 1 pro tanh
+            gen_imgs = (gen_imgs+1)/2
 
             fig, axs = plt.subplots(x, y)
             cnt = 0
@@ -287,13 +295,13 @@ class GAN():
 
             output_dir = "data/output/" + noise_type
             os.makedirs(output_dir, exist_ok=True)  # Vytvoření výstupního adresáře, pokud neexistuje
-            fig.savefig(os.path.join(output_dir, "%d.png" % epoch))
+            fig.savefig(os.path.join(output_dir, "n_%d.png" % epoch))
             plt.close()
 
         except Exception as e:
             print("Při vzorkování obrázků došlo k chybě:")
             traceback.print_exc()
-        if(mode!='generate'):
+        if mode != 'generate' and epoch != 0: # nechci generovat 0 epochu
             # Uložení vah
             weights_dir = 'data/weights/' + noise_type + '/'
             os.makedirs(weights_dir, exist_ok=True)  # Vytvoření výstupního adresáře, pokud neexistuje
@@ -307,7 +315,7 @@ if __name__ == '__main__':
 
     # Typ šumu: random, perlin noise, simplex noise (random/perlin/simplex)
     # noise_type = 'random'
-    noise_type = 'perlin'
+    noise_type = 'simplex'
 
     # Režim: trénovací / generovací (train/generate)
     # mode = 'train'

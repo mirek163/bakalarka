@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
 from tkinter import filedialog
+from tkinter import *
 from functools import partial
 from PIL import ImageTk, Image
 import os
@@ -21,13 +22,26 @@ class GANUI:
         # ------------------------------------------------------
         # Nastavení okna
         # ------------------------------------------------------
-
         self.window = tk.Tk()
         self.window.title("Generátor obrázků pomocí GAN")
         self.window.geometry("1000x600")  # Nastavení počáteční velikosti okna
+        # Vytvoření canvasu
+        canvas = tk.Canvas(self.window)
+        canvas.pack(side="left", fill="both", expand=True)
+
+        # Připojení scrollbaru k canvasu
+        scrollbar = ttk.Scrollbar(self.window, orient="vertical", command=canvas.yview)
+        scrollbar.pack(side="right", fill="y")
+
+        # Nastavení scrollbaru na canvas
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        # Vytvoření rámce uvnitř canvasu pro umístění prvků UI
+        inner_frame = ttk.Frame(canvas)
+        canvas.create_window((0, 0), window=inner_frame, anchor="nw")
 
         # Horní panel s výběrem šumu a vstupním polem pro počet epoch
-        top_bar = ttk.Frame(self.window, padding="10")
+        top_bar = ttk.Frame(inner_frame, padding="10")
         top_bar.pack(side="top", fill="x")
 
         noise_label = ttk.Label(top_bar, text="Typ šumu:")
@@ -46,16 +60,27 @@ class GANUI:
         epoch_entry.insert(tk.END, str(epoch_number))
         epoch_entry.pack(side="left")
 
-        generate_button = ttk.Button(top_bar, text="Generovat",
-                                     command=partial(self.generate_images, noise_var, epoch_entry))
+        generate_button = ttk.Button(top_bar, text="Generovat", command=partial(self.generate_images, noise_var, epoch_entry))
         generate_button.pack(side="left")
 
         delete_button = ttk.Button(top_bar, text="Smazat obrázky", command=partial(self.delete_images, noise_var))
         delete_button.pack(side="left")
 
-        # Label pro zobrazení obrázku
-        self.image_label = ttk.Label(self.window)
-        self.image_label.pack()
+
+        # Label pro zobrazení starého obrázku
+        self.old_image_label = Label(inner_frame)
+        self.old_image_label.pack(side="top", pady=10, padx=170)
+
+        # Label pro zobrazení nového obrázku
+        self.new_image_label = Label(inner_frame)
+        self.new_image_label.pack(side="top",pady=10, padx=170)
+
+        # Přidání funkcionality scrollbaru k canvasu
+        inner_frame.bind("<Configure>", lambda event: canvas.configure(scrollregion=canvas.bbox("all")))
+
+        # Spuštění posunování canvasu pomocí kolečka myši
+        canvas.bind_all("<MouseWheel>", lambda event: canvas.yview_scroll(int(-1 * (event.delta / 120)), "units"))
+
 
     def generate_images(self, noise_var, epoch_entry):
         """
@@ -70,9 +95,10 @@ class GANUI:
 
         # Generování obrázků
         self.gan.sample_images(epoch_number, noise_type,mode='generate')
-        image_path = f"data/output/{noise_type}/{epoch_number}.png" # zavolání funkce v main
+        old_image_path  = f"data/output/{noise_type}/o_{epoch_number}.png" # zavolání funkce v main
+        new_image_path = f"data/output/{noise_type}/n_{epoch_number}.png"
 
-        self.display_image(image_path)
+        self.display_image(old_image_path,new_image_path)
 
     def delete_images(self, noise_var):
         """
@@ -84,22 +110,27 @@ class GANUI:
         for file in files:
             os.remove(file)
 
-    def display_image(self, image_path):
+    def display_image(self, old_image_path, new_image_path):
         """
         Zobrazí obrázek na uživatelském rozhraní.
 
         Parametry:
         - image_path: Cesta k obrázku.
         """
-        image = Image.open(image_path) # Otevře obrázek v 'image_path' pomocí knihovny PIL a vytvoří objekt Image
+        old_image = Image.open(old_image_path)
+        new_image = Image.open(new_image_path) # Otevře obrázek v 'image_path' pomocí knihovny PIL a vytvoří objekt Image
 
-        photo = ImageTk.PhotoImage(image) # Vytvoří Tkinter-kompatibilní objekt obrázku z objektu Image knihovny PIL
+        old_photo = ImageTk.PhotoImage(old_image)
+        new_photo = ImageTk.PhotoImage(new_image) # Vytvoří Tkinter-kompatibilní objekt obrázku z objektu Image knihovny PIL
 
-        self.image_label.configure(image=photo)  # Nastaví atribut 'image' widgetu self.image_label na zobrazení obrázku
+        self.old_image_label.configure(image=old_photo)  # Nastaví atribut 'image' widgetu self.image_label na zobrazení obrázku
+        self.new_image_label.configure(image=new_photo)  # Nastaví atribut 'image' widgetu self.image_label na zobrazení obrázku
 
         # Uloží odkaz na objekt PhotoImage přiřazením ho do atributu 'image' widgetu self.image_label.
         # Tím se zajistí, že objekt obrázku nebude odstraněn systémem pro správu paměti a zůstane v paměti
-        self.image_label.image = photo
+        self.old_image_label.image = old_photo
+        self.new_image_label.image = new_photo
+
 
     def run(self):
         self.window.mainloop()
