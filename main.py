@@ -1,8 +1,8 @@
 from __future__ import print_function, division  # Pro kompatibilitu s Python 2
 import os  # Manipulace se souborovým systémem
 import traceback  # Výpis trasování chyb
-from keras.layers import Input, Dense, Reshape, Flatten  # Vrstvy modelu Keras
-from keras.layers import BatchNormalization, LeakyReLU
+from keras.layers import Input, Dense, Reshape, Flatten, Conv2DTranspose  # Vrstvy modelu Keras
+from keras.layers import BatchNormalization, LeakyReLU, Conv2D
 from keras.models import Sequential, Model  # Modely Keras
 from keras.optimizers import Adam  # Optimalizátor Adam
 import matplotlib.pyplot as plt  # Vykreslování obrázků
@@ -13,7 +13,7 @@ import numpy as np  # Matematické operace s poli
 
 import noises
 
-DATASET = 'data/input/crack/'
+DATASET = 'data/input/maps/'
 LATENT_DIM = 100
 
 
@@ -59,54 +59,101 @@ class GAN():
         self.combined.compile(loss='binary_crossentropy', optimizer=optimizer)
 
     def build_generator(self, noise_type):
-        """
-        Metoda pro vytvoření a sestavení generátoru modelu.
+        model = Sequential()
 
-        Parametry:
-        - noise_type: Typ šumu pro generátor (random/perlin/simplex)
-        """
-        model = Sequential()  # Vytvoření sekvenčního modelu Keras
+        # Generator layers
+        model.add(Dense(256, input_dim=self.LATENT_DIM))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(Dense(512))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(Dense(1024))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(Dense(4 * 4 * 64))  # Adjust the output size based on the desired resolution
+        model.add(Reshape((4, 4, 64)))  # Reshape to the appropriate size
+        model.add(Conv2DTranspose(32, kernel_size=4, strides=2, padding='same'))  # Upsampling
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(Conv2DTranspose(16, kernel_size=4, strides=2, padding='same'))  # Upsampling
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(Conv2DTranspose(8, kernel_size=4, strides=2, padding='same'))  # Upsampling
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(
+            Conv2DTranspose(3, kernel_size=4, strides=2, padding='same', activation='tanh'))  # Upsampling and output
 
-        # Vrstvy generátoru
-        model.add(Dense(256, input_dim=self.LATENT_DIM))  # Plně propojená vrstva s 256 jednotkami
-        model.add(LeakyReLU(alpha=0.2))  # Aktivační funkce LeakyReLU s parametrem alpha=0.2
-        model.add(BatchNormalization(momentum=0.8))  # Normalizace dávkou s parametrem momentum=0.8
-        model.add(Dense(512))  # Plně propojená vrstva s 512 jednotkami
-        model.add(LeakyReLU(alpha=0.2))  # Aktivační funkce LeakyReLU s parametrem alpha=0.2
-        model.add(BatchNormalization(momentum=0.8))  # Normalizace dávkou s parametrem momentum=0.8
-        model.add(Dense(1024))  # Plně propojená vrstva s 1024 jednotkami
-        model.add(LeakyReLU(alpha=0.2))  # Aktivační funkce LeakyReLU s parametrem alpha=0.2
-        model.add(BatchNormalization(momentum=0.8))  # Normalizace dávkou s parametrem momentum=0.8
-        model.add(Dense(np.prod(self.img_shape), activation='tanh'))  # Plně propojená vrstva s aktivací tanh
-        model.add(Reshape(self.img_shape))  # Změna tvaru na velikost obrázku
-        model.summary()  # Výpis shrnutí modelu
+        model.summary()
 
-        noise = Input(shape=(self.LATENT_DIM,))  # Vstup pro šum
+        noise = Input(shape=(self.LATENT_DIM,))
+        img = model(noise)
 
-        img = model(noise)  # Generování obrázku pomocí modelu
-        return Model(noise, img)  # Vytvoření konečného modelu s vstupem noise a výstupem img
+        return Model(noise, img)
 
     def build_discriminator(self):
-        """
-        Metoda pro vytvoření a sestavení diskriminátoru modelu.
-        """
-        model = Sequential()  # Vytvoření sekvenčního modelu Keras
+        model = Sequential()
 
-        # Vrstvy diskriminátoru
-        model.add(Flatten(input_shape=self.img_shape))  # Plošná vrstva pro rovnání vstupního obrazu
-        model.add(Dense(512))  # Plně propojená vrstva s 512 jednotkami
-        model.add(LeakyReLU(alpha=0.2))  # Aktivační funkce LeakyReLU s parametrem alpha=0.2
-        model.add(Dense(256))  # Plně propojená vrstva s 256 jednotkami
-        model.add(LeakyReLU(alpha=0.2))  # Aktivační funkce LeakyReLU s parametrem alpha=0.2
-        model.add(Dense(1, activation='sigmoid'))  # Plně propojená vrstva s aktivací sigmoid
+        # Discriminator layers
+        model.add(Conv2D(32, kernel_size=3, strides=2, input_shape=self.img_shape, padding='same'))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Conv2D(64, kernel_size=3, strides=2, padding='same'))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Conv2D(128, kernel_size=3, strides=2, padding='same'))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Conv2D(256, kernel_size=3, strides=2, padding='same'))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Flatten())
+        model.add(Dense(1, activation='sigmoid'))
 
-        model.summary()  # Výpis shrnutí modelu
+        model.summary()
 
-        img = Input(shape=self.img_shape)  # Vstup pro obraz
-        validity = model(img)  # Výstup diskriminátoru
+        img = Input(shape=self.img_shape)
+        validity = model(img)
 
-        return Model(img, validity)  # Vytvoření modelu s vstupem img a výstupem validity
+        return Model(img, validity)
 
+    # def build_generator(self, noise_type):
+    #     """
+    #     Metoda pro vytvoření a sestavení generátoru modelu.
+    #     Parametry:
+    #     - noise_type: Typ šumu pro generátor (random/perlin/simplex)
+    #     """
+    #     model = Sequential()  # Vytvoření sekvenčního modelu Keras
+    #     # Vrstvy generátoru
+    #     model.add(Dense(256, input_dim=self.LATENT_DIM))  # Plně propojená vrstva s 256 jednotkami
+    #     model.add(LeakyReLU(alpha=0.2))  # Aktivační funkce LeakyReLU s parametrem alpha=0.2
+    #     model.add(BatchNormalization(momentum=0.8))  # Normalizace dávkou s parametrem momentum=0.8
+    #     model.add(Dense(512))  # Plně propojená vrstva s 512 jednotkami
+    #     model.add(LeakyReLU(alpha=0.2))  # Aktivační funkce LeakyReLU s parametrem alpha=0.2
+    #     model.add(BatchNormalization(momentum=0.8))  # Normalizace dávkou s parametrem momentum=0.8
+    #     model.add(Dense(1024))  # Plně propojená vrstva s 1024 jednotkami
+    #     model.add(LeakyReLU(alpha=0.2))  # Aktivační funkce LeakyReLU s parametrem alpha=0.2
+    #     model.add(BatchNormalization(momentum=0.8))  # Normalizace dávkou s parametrem momentum=0.8
+    #     model.add(Dense(np.prod(self.img_shape), activation='tanh'))  # Plně propojená vrstva s aktivací tanh
+    #     model.add(Reshape(self.img_shape))  # Změna tvaru na velikost obrázku
+    #     model.summary()  # Výpis shrnutí modelu
+    #     noise = Input(shape=(self.LATENT_DIM,))  # Vstup pro šum
+    #     img = model(noise)  # Generování obrázku pomocí modelu
+    #     return Model(noise, img)  # Vytvoření konečného modelu s vstupem noise a výstupem img
+    #
+    # def build_discriminator(self):
+    #     """
+    #     Metoda pro vytvoření a sestavení diskriminátoru modelu.
+    #     """
+    #     model = Sequential()  # Vytvoření sekvenčního modelu Keras
+    #     # Vrstvy diskriminátoru
+    #     model.add(Flatten(input_shape=self.img_shape))  # Plošná vrstva pro rovnání vstupního obrazu
+    #     model.add(Dense(512))  # Plně propojená vrstva s 512 jednotkami
+    #     model.add(LeakyReLU(alpha=0.2))  # Aktivační funkce LeakyReLU s parametrem alpha=0.2
+    #     model.add(Dense(256))  # Plně propojená vrstva s 256 jednotkami
+    #     model.add(LeakyReLU(alpha=0.2))  # Aktivační funkce LeakyReLU s parametrem alpha=0.2
+    #     model.add(Dense(1, activation='sigmoid'))  # Plně propojená vrstva s aktivací sigmoid
+    #     model.summary()  # Výpis shrnutí modelu
+    #     img = Input(shape=self.img_shape)  # Vstup pro obraz
+    #     validity = model(img)  # Výstup diskriminátoru
+    #     return Model(img, validity)  # Vytvoření modelu s vstupem img a výstupem validity
 
     def train(self, epochs, batch_size=128, sample_interval=50, noise_type='random'):
         """
@@ -315,7 +362,7 @@ if __name__ == '__main__':
 
     # Typ šumu: random, perlin noise, simplex noise (random/perlin/simplex)
     # noise_type = 'random'
-    noise_type = 'simplex'
+    noise_type = 'random'
 
     # Režim: trénovací / generovací (train/generate)
     # mode = 'train'

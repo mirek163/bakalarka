@@ -36,7 +36,7 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
-# Unit test / coverage reports
+# Unit maps / coverage reports
 htmlcov/
 .tox/
 .nox/
@@ -144,8 +144,12 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-# Složka s natrénovanými epochy ( nepotřebuju dávat na github )
+#  nepotřebuju dávat na github
 output/
+data/NE1_HR_LC_SR_W_DR.tif
+data/input/maps
+data/input/crack
+
 
 # PyCharm
 #  JetBrains specific template is maintainted in a separate JetBrains.gitignore that can
