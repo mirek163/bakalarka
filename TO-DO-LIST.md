@@ -14,7 +14,13 @@
 - [ ] **Šumy(2)** - Prozkoumat a implementovat další typy šumu pro augmentaci dat + Implementovat algoritmy Perlin noise a simplex noise od základu.
 - [x] **Struktura** - ROzdělit kod do více souboru pro lepší orientování.
 - [x] **Conv sít** - Převést sít na konvoluční sít.
-- [] **Augmentace** - Udělat co nejvíce ruzných obrázku z jedne fotky
+- [x] **Augmentace** - Udělat co nejvíce ruzných obrázku z jedne fotky
+
+kouknou na fid ( vyhodnocení spravnosati i bez očního testu)
+goodfellow GAN juknout
+
+https://this-person-does-not-exist.com/en
+trenování na MNIST ?
 
 
 > Weights.h5 je natrenovaný na 10000 epoch ( neustále mi to padalo), pro jistotu jsem soubor uložil do backup při neštastném přepsání.

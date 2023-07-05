@@ -1,7 +1,9 @@
 from __future__ import print_function, division  # Pro kompatibilitu s Python 2
 import os  # Manipulace se souborovým systémem
 import traceback  # Výpis trasování chyb
-from keras.layers import Input, Dense, Reshape, Flatten, Conv2DTranspose  # Vrstvy modelu Keras
+import random
+
+from keras.layers import Input, Dense, Reshape, Flatten, Conv2DTranspose, Dropout  # Vrstvy modelu Keras
 from keras.layers import BatchNormalization, LeakyReLU, Conv2D
 from keras.models import Sequential, Model  # Modely Keras
 from keras.optimizers import Adam  # Optimalizátor Adam
@@ -13,8 +15,10 @@ import numpy as np  # Matematické operace s poli
 
 import noises
 
-DATASET = 'data/input/maps/'
+DATASET = 'data/input/region/'
 LATENT_DIM = 100
+DATASET_NUMBER = 5024
+BATCH_SIZE = 128
 
 
 
@@ -62,28 +66,22 @@ class GAN():
         model = Sequential()
 
         # Generator layers
-        model.add(Dense(256, input_dim=self.LATENT_DIM))
+        model.add(Dense(256 * 16 * 16, input_dim=self.LATENT_DIM))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Reshape((16, 16, 256)))
+        model.add(Conv2DTranspose(128, kernel_size=4, strides=2, padding='same'))
         model.add(LeakyReLU(alpha=0.2))
         model.add(BatchNormalization(momentum=0.8))
-        model.add(Dense(512))
+        model.add(Dropout(0.5))  # Dropout layer
+        model.add(Conv2DTranspose(64, kernel_size=4, strides=2, padding='same'))
         model.add(LeakyReLU(alpha=0.2))
         model.add(BatchNormalization(momentum=0.8))
-        model.add(Dense(1024))
+        model.add(Dropout(0.5))  # Dropout layer
+        model.add(Conv2DTranspose(32, kernel_size=4, strides=2, padding='same'))
         model.add(LeakyReLU(alpha=0.2))
         model.add(BatchNormalization(momentum=0.8))
-        model.add(Dense(4 * 4 * 64))  # Adjust the output size based on the desired resolution
-        model.add(Reshape((4, 4, 64)))  # Reshape to the appropriate size
-        model.add(Conv2DTranspose(32, kernel_size=4, strides=2, padding='same'))  # Upsampling
-        model.add(LeakyReLU(alpha=0.2))
-        model.add(BatchNormalization(momentum=0.8))
-        model.add(Conv2DTranspose(16, kernel_size=4, strides=2, padding='same'))  # Upsampling
-        model.add(LeakyReLU(alpha=0.2))
-        model.add(BatchNormalization(momentum=0.8))
-        model.add(Conv2DTranspose(8, kernel_size=4, strides=2, padding='same'))  # Upsampling
-        model.add(LeakyReLU(alpha=0.2))
-        model.add(BatchNormalization(momentum=0.8))
-        model.add(
-            Conv2DTranspose(3, kernel_size=4, strides=2, padding='same', activation='tanh'))  # Upsampling and output
+        model.add(Dropout(0.5))  # Dropout layer
+        model.add(Conv2DTranspose(3, kernel_size=4, strides=2, padding='same', activation='tanh'))  # Upsampling and output
 
         model.summary()
 
@@ -96,12 +94,15 @@ class GAN():
         model = Sequential()
 
         # Discriminator layers
-        model.add(Conv2D(32, kernel_size=3, strides=2, input_shape=self.img_shape, padding='same'))
+        model.add(Conv2D(32, kernel_size=3, strides=2, input_shape=(256, 256, 3), padding='same'))
         model.add(LeakyReLU(alpha=0.2))
+        model.add(Dropout(0.5))  # Dropout layer
         model.add(Conv2D(64, kernel_size=3, strides=2, padding='same'))
         model.add(LeakyReLU(alpha=0.2))
+        model.add(Dropout(0.5))  # Dropout layer
         model.add(Conv2D(128, kernel_size=3, strides=2, padding='same'))
         model.add(LeakyReLU(alpha=0.2))
+        model.add(Dropout(0.5))  # Dropout layer
         model.add(Conv2D(256, kernel_size=3, strides=2, padding='same'))
         model.add(LeakyReLU(alpha=0.2))
         model.add(Flatten())
@@ -109,52 +110,10 @@ class GAN():
 
         model.summary()
 
-        img = Input(shape=self.img_shape)
+        img = Input(shape=(256, 256, 3))
         validity = model(img)
 
         return Model(img, validity)
-
-    # def build_generator(self, noise_type):
-    #     """
-    #     Metoda pro vytvoření a sestavení generátoru modelu.
-    #     Parametry:
-    #     - noise_type: Typ šumu pro generátor (random/perlin/simplex)
-    #     """
-    #     model = Sequential()  # Vytvoření sekvenčního modelu Keras
-    #     # Vrstvy generátoru
-    #     model.add(Dense(256, input_dim=self.LATENT_DIM))  # Plně propojená vrstva s 256 jednotkami
-    #     model.add(LeakyReLU(alpha=0.2))  # Aktivační funkce LeakyReLU s parametrem alpha=0.2
-    #     model.add(BatchNormalization(momentum=0.8))  # Normalizace dávkou s parametrem momentum=0.8
-    #     model.add(Dense(512))  # Plně propojená vrstva s 512 jednotkami
-    #     model.add(LeakyReLU(alpha=0.2))  # Aktivační funkce LeakyReLU s parametrem alpha=0.2
-    #     model.add(BatchNormalization(momentum=0.8))  # Normalizace dávkou s parametrem momentum=0.8
-    #     model.add(Dense(1024))  # Plně propojená vrstva s 1024 jednotkami
-    #     model.add(LeakyReLU(alpha=0.2))  # Aktivační funkce LeakyReLU s parametrem alpha=0.2
-    #     model.add(BatchNormalization(momentum=0.8))  # Normalizace dávkou s parametrem momentum=0.8
-    #     model.add(Dense(np.prod(self.img_shape), activation='tanh'))  # Plně propojená vrstva s aktivací tanh
-    #     model.add(Reshape(self.img_shape))  # Změna tvaru na velikost obrázku
-    #     model.summary()  # Výpis shrnutí modelu
-    #     noise = Input(shape=(self.LATENT_DIM,))  # Vstup pro šum
-    #     img = model(noise)  # Generování obrázku pomocí modelu
-    #     return Model(noise, img)  # Vytvoření konečného modelu s vstupem noise a výstupem img
-    #
-    # def build_discriminator(self):
-    #     """
-    #     Metoda pro vytvoření a sestavení diskriminátoru modelu.
-    #     """
-    #     model = Sequential()  # Vytvoření sekvenčního modelu Keras
-    #     # Vrstvy diskriminátoru
-    #     model.add(Flatten(input_shape=self.img_shape))  # Plošná vrstva pro rovnání vstupního obrazu
-    #     model.add(Dense(512))  # Plně propojená vrstva s 512 jednotkami
-    #     model.add(LeakyReLU(alpha=0.2))  # Aktivační funkce LeakyReLU s parametrem alpha=0.2
-    #     model.add(Dense(256))  # Plně propojená vrstva s 256 jednotkami
-    #     model.add(LeakyReLU(alpha=0.2))  # Aktivační funkce LeakyReLU s parametrem alpha=0.2
-    #     model.add(Dense(1, activation='sigmoid'))  # Plně propojená vrstva s aktivací sigmoid
-    #     model.summary()  # Výpis shrnutí modelu
-    #     img = Input(shape=self.img_shape)  # Vstup pro obraz
-    #     validity = model(img)  # Výstup diskriminátoru
-    #     return Model(img, validity)  # Vytvoření modelu s vstupem img a výstupem validity
-
     def train(self, epochs, batch_size=128, sample_interval=50, noise_type='random'):
         """
         Metoda pro trénování modelu.
@@ -178,8 +137,10 @@ class GAN():
 
         try:
             # Načtení obrázků ze složky
-            image_files = glob.glob(self.DATASET+'*.jpg')
+            image_files = glob.glob(self.DATASET+'*.png')
             X_train = []
+            random.shuffle(image_files)
+            image_files = image_files[:DATASET_NUMBER]
             for image_file in image_files:
                 try:
                     # Otevření obrázku, úprava velikosti a konverze do RGB formátu
@@ -191,7 +152,7 @@ class GAN():
                     right = left + size
                     bottom = top + size
                     image = image.crop((left, top, right, bottom))
-                    image = image.resize((64, 64))
+                    image = image.resize((256, 256))
                     image = np.array(image)
                     X_train.append(image)
                 except Exception as e:
@@ -269,9 +230,11 @@ class GAN():
                 else:
                     my_noise = np.random.normal(0, 1, (batch_size, self.LATENT_DIM))
 
-                for _ in range(3):
-                    # Trénování generátoru (pouze generátor, diskriminátor je zamražen)
-                    g_loss = self.combined.train_on_batch(my_noise, valid)
+                g_loss = self.combined.train_on_batch(my_noise, valid)
+
+                # for _ in range(3):
+                #    # Trénování generátoru (pouze generátor, diskriminátor je zamražen)
+                #    g_loss = self.combined.train_on_batch(my_noise, valid)
 
                 # Výpis průběhu trénování
                 print("%d [Ztráta disk.: %f, přesnost: %.2f%%] [Ztráta gen.: %f]" % (
@@ -362,7 +325,7 @@ if __name__ == '__main__':
 
     # Typ šumu: random, perlin noise, simplex noise (random/perlin/simplex)
     # noise_type = 'random'
-    noise_type = 'random'
+    noise_type = 'perlin'
 
     # Režim: trénovací / generovací (train/generate)
     # mode = 'train'
@@ -371,7 +334,7 @@ if __name__ == '__main__':
     gan = GAN(noise_type)
 
     if mode == 'train':
-        gan.train(epochs=10000, batch_size=32, sample_interval=100, noise_type=noise_type)
+        gan.train(epochs=10000, batch_size=BATCH_SIZE, sample_interval=1000, noise_type=noise_type)
 
     elif mode == 'generate':
         # Načtení vah
