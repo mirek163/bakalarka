@@ -146,7 +146,7 @@ cython_debug/
 
 #  nepotřebuju dávat na github
 output/
-data/NE1_HR_LC_SR_W_DR.tif
+data/input/region.tif
 data/input/maps
 data/input/crack
 

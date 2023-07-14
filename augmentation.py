@@ -2,7 +2,7 @@ import rasterio
 import numpy as np
 from PIL import Image, ImageOps, ImageEnhance
 
-image_path = "data/NE1_HR_LC_SR_W_DR.tif" # 21600x10800
+image_path = "data/input/region.tif"  # 21600x10800
 
 cim_path = 'data/input/'
 output_path = 'data/input/region/'
@@ -11,7 +11,7 @@ x_start, x_end = 13000, 14000
 
 y_start, y_end = 1500, 2500
 
-number_of_pictures = 5024
+number_of_pictures = 1000 #5024
 number_of_pictures=number_of_pictures // 32
 
 brightness_factor1 = 1.15
