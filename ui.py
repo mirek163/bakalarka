@@ -95,7 +95,7 @@ class GANUI:
 
         # Generování obrázků
         self.gan.sample_images(epoch_number, noise_type,mode='generate')
-        old_image_path  = f"data/output/{noise_type}/o_{epoch_number}.png" # zavolání funkce v main
+        old_image_path  = f"data/output/{noise_type}/o_{epoch_number}.png"
         new_image_path = f"data/output/{noise_type}/n_{epoch_number}.png"
 
         self.display_image(old_image_path,new_image_path)
