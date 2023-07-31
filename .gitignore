@@ -147,8 +147,10 @@ cython_debug/
 #  nepotřebuju dávat na github
 output/
 data/input/region.tif
-data/input/maps
+data/input/region
+
 data/input/crack
+data/weights
 
 
 # PyCharm

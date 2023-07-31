@@ -2,17 +2,16 @@ import rasterio
 import numpy as np
 from PIL import Image, ImageOps, ImageEnhance
 
-image_path = "data/input/region.tif"  # 21600x10800
+image_path = "data/input/region.tif" # 21600x10800
 
-cim_path = 'data/input/'
+cim_path = 'bakalarka'
 output_path = 'data/input/region/'
 
 x_start, x_end = 13000, 14000
 
 y_start, y_end = 1500, 2500
 
-number_of_pictures = 1000 #5024
-number_of_pictures=number_of_pictures // 32
+number_of_pictures = 70000 #*4
 
 brightness_factor1 = 1.15
 brightness_factor2 = 0.85
@@ -39,7 +38,7 @@ epoch = 0
 def print_status():
     global epoch
     epoch += 1
-    print(f"{epoch}/{number_of_pictures * 32}\n----------------------------")
+    print(f"{epoch}/{number_of_pictures * 4}\n----------------------------")
 
 def brightness(image):
     im = ImageEnhance.Brightness(image)
@@ -72,20 +71,20 @@ for number in range(number_of_pictures):
     random_region_image.save(random_region_path)
     print_status()
 
-    im_brightness = brightness(random_region_image)
+    #im_brightness = brightness(random_region_image)
 
-    im_brightness[0].save(output_path+'region_b_'+str(number)+'.png')
-    print_status()
+    #im_brightness[0].save(output_path+'region_b_'+str(number)+'.png')
+    #print_status()
 
-    im_brightness[1].save(output_path+'region_bb_'+str(number)+'.png')
-    print_status()
+    #im_brightness[1].save(output_path+'region_bb_'+str(number)+'.png')
+    #print_status()
 
-    im_contrast = contrast(random_region_image)
-    im_contrast[0].save(output_path+'region_c_'+str(number)+'.png')
-    print_status()
+    #im_contrast = contrast(random_region_image)
+    #im_contrast[0].save(output_path+'region_c_'+str(number)+'.png')
+    #print_status()
 
-    im_contrast[1].save(output_path+'region_cc_'+str(number)+'.png')
-    print_status()
+    #im_contrast[1].save(output_path+'region_cc_'+str(number)+'.png')
+    #print_status()
 
 
     for angle in [90, 180, 270]:
@@ -94,36 +93,36 @@ for number in range(number_of_pictures):
         rotated_region.save(output_path+'region'+str(angle)+'_'+str(number)+'.png')
         print_status()
 
-        im_brightness = brightness(rotated_region)
-        im_brightness[0].save(output_path+'region_b_'+str(angle)+'_'+str(number)+'.png')
-        print_status()
+        #im_brightness = brightness(rotated_region)
+        #im_brightness[0].save(output_path+'region_b_'+str(angle)+'_'+str(number)+'.png')
+        #print_status()
 
-        im_brightness[1].save(output_path+'region_bb_'+str(angle)+'_'+str(number)+'.png')
-        print_status()
+        #im_brightness[1].save(output_path+'region_bb_'+str(angle)+'_'+str(number)+'.png')
+        #print_status()
 
-        im_contrast = contrast(rotated_region)
-        im_contrast[0].save(output_path+'region_c_'+str(angle)+'_'+str(number)+'.png')
-        print_status()
+        #im_contrast = contrast(rotated_region)
+        #im_contrast[0].save(output_path+'region_c_'+str(angle)+'_'+str(number)+'.png')
+        #print_status()
 
-        im_contrast[1].save(output_path+'region_c_'+str(angle)+'_'+str(number)+'.png')
-        print_status()
+        #im_contrast[1].save(output_path+'region_c_'+str(angle)+'_'+str(number)+'.png')
+        #print_status()
 
-        im_flip = ImageOps.flip(rotated_region)
-        im_flip.save(output_path+'region' + str(angle) + '_f_' + str(number) + '.png')
+        #im_flip = ImageOps.flip(rotated_region)
+        #im_flip.save(output_path+'region' + str(angle) + '_f_' + str(number) + '.png')
 
-        im_brightness = brightness(im_flip)
-        im_brightness[0].save(output_path+'region_b_'+str(angle)+'_f_'+str(number)+'.png')
-        print_status()
+        #im_brightness = brightness(im_flip)
+        #im_brightness[0].save(output_path+'region_b_'+str(angle)+'_f_'+str(number)+'.png')
+        #print_status()
 
-        im_brightness[1].save(output_path+'region_bb_'+str(angle)+'_f_'+str(number)+'.png')
-        print_status()
+        #im_brightness[1].save(output_path+'region_bb_'+str(angle)+'_f_'+str(number)+'.png')
+        #print_status()
 
-        im_brightness = contrast(im_flip)
-        im_contrast[0].save(output_path+'region_c_'+str(angle)+'_f_'+str(number)+'.png')
-        print_status()
+        #im_brightness = contrast(im_flip)
+        #im_contrast[0].save(output_path+'region_c_'+str(angle)+'_f_'+str(number)+'.png')
+        #print_status()
 
-        im_contrast[1].save(output_path+'region_cc_'+str(angle)+'_f_'+str(number)+'.png')
-        print_status()
+        #im_contrast[1].save(output_path+'region_cc_'+str(angle)+'_f_'+str(number)+'.png')
+        #print_status()
 
 
 
