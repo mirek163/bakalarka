@@ -15,8 +15,8 @@ class GANUI:
         # ------------------------------------------------------
         # Nastavení počátečních proměných
         # ------------------------------------------------------
-        noise_type = 'random'  # Výchozí typ šumu
-        epoch_number = 15000  # Výchozí počet epoch
+        noise_type = 'simplex'  # Výchozí typ šumu
+        epoch_number = 30000  # Výchozí počet epoch
         self.gan = GAN()
 
         # ------------------------------------------------------
@@ -109,6 +109,7 @@ class GANUI:
         dataset_image_path = f"{OUTPUT_PATH}{noise_type}/d_{epoch_number}.png"
 
         self.display_image(old_image_path,new_image_path,dataset_image_path)
+        #self.display_image(new_image_path,dataset_image_path)
 
     def delete_images(self, noise_var):
         """
@@ -121,6 +122,8 @@ class GANUI:
             os.remove(file)
 
     def display_image(self, old_image_path, new_image_path, dataset_image_path):
+
+   # def display_image(self,new_image_path,dataset_image_path):
         """
         Zobrazí obrázek na uživatelském rozhraní.
 

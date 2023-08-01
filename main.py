@@ -406,13 +406,12 @@ class GAN():
             x, y = 3, 4  # Grid size
 
             gen_imgs = np.empty((x * y, self.img_rows, self.img_cols, self.channels))
-
+            #noise_imgs = np.empty((x * y, self.img_rows, self.img_cols, self.channels))
             noise=[]
 
-
+            noise = np.random.normal(0, 1, (x * y, self.LATENT_DIM))
             for i in range(x):
                 for j in range(y):
-                    noise = np.random.normal(0, 1, (x * y, self.LATENT_DIM))
                     seed = np.random.randint(0, 1000)
 
                     if noise_type == 'perlin':
@@ -431,17 +430,16 @@ class GAN():
                         noise = np.reshape(perlin_noise, (1, WIDTH, WIDTH, 3))
 
                     elif noise_type == 'simplex':
-                        simplex_noise = np.empty((1, self.LATENT_DIM))
+                        simplex_noise = np.empty(self.LATENT_DIM)
                         for k in range(self.LATENT_DIM):
                             xs = (seed + k % WIDTH) / 4
                             ys = (seed + k / WIDTH) / 4
-                            simplex_noise[0, k] = ns.snoise2(xs, ys, octaves=OCTAVES, persistence=PERSISTENCE,
+                            simplex_noise[k] = ns.snoise2(xs, ys, octaves=OCTAVES, persistence=PERSISTENCE,
                                                              lacunarity=LACUNARITY)
-                        noise = simplex_noise
+                        noise[i * y + j] = simplex_noise
 
-
-                    gen_img = self.generator.predict(noise)
-                    gen_imgs[i * y + j] = gen_img[0]
+                gen_imgs = self.generator.predict(noise)
+                # gen_imgs[i * y + j] = gen_img[0]
 
 
             # Přizpůsobení rozsahu obrázků na 0 - 1 pro tanh
@@ -463,25 +461,11 @@ class GAN():
                 plt.suptitle("Vygenerovaný výstup")
             fig.savefig(os.path.join(output_dir, "n_%d.png" % epoch), dpi=dpi)
 
-            plt.close()
+            # plt.close()
 
             #print(gen_imgs)
             #print(noise)
 
-            cnt = 0
-            for i in range(x):
-                for j in range(y):
-                    axs[i, j].imshow(noise[cnt].reshape((int(np.sqrt(LATENT_DIM)), int(np.sqrt(LATENT_DIM)))), cmap='gray')
-                    axs[i, j].axis('off')
-                    cnt += 1
-
-            output_dir = OUTPUT_PATH + noise_type
-            os.makedirs(output_dir, exist_ok=True)  # Vytvoření výstupního adresáře, pokud neexistuje
-            if UI:
-                plt.suptitle("Vstupní šum")
-            fig.savefig(os.path.join(output_dir, "o_%d.png" % epoch), dpi=dpi)
-
-            plt.close()
             if UI:
                 image_paths = []
                 for filename in os.listdir(DATASET):
@@ -502,7 +486,26 @@ class GAN():
 
                 plt.suptitle("Dataset")
                 fig.savefig(os.path.join(output_dir, "d_%d.png" % epoch), dpi=dpi)
-                plt.close()
+                # plt.close()
+
+
+
+            cnt = 0
+            print(cnt)
+            for i in range(x):
+                for j in range(y):
+                    #axs[i, j].imshow(noise_imgs[cnt])
+                    axs[i, j].imshow(noise[cnt].reshape((WIDTH, WIDTH)), cmap='gray')
+                    axs[i, j].axis('off')
+                    cnt += 1
+
+            output_dir = OUTPUT_PATH + noise_type
+            os.makedirs(output_dir, exist_ok=True)  # Vytvoření výstupního adresáře, pokud neexistuje
+            if UI:
+                plt.suptitle("Vstupní šum")
+            fig.savefig(os.path.join(output_dir, "o_%d.png" % epoch), dpi=dpi)
+
+            plt.close()
 
 
 

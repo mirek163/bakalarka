@@ -11,7 +11,7 @@ x_start, x_end = 13000, 14000
 
 y_start, y_end = 1500, 2500
 
-number_of_pictures = 70000 #*4
+number_of_pictures = 100 #*4
 
 brightness_factor1 = 1.15
 brightness_factor2 = 0.85
