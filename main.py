@@ -1,35 +1,28 @@
 from __future__ import print_function, division  # Pro kompatibilitu s Python 2
 import os  # Manipulace se souborovým systémem
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Odignorování některých chybových hlášek v JupyterLab
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
-import re
-import traceback  # Výpis trasování chyb
-from keras.layers import Input, Dense, Reshape, Flatten, Conv2DTranspose  # Vrstvy modelu Keras
+
+import traceback
+from keras.layers import Input, Dense, Reshape, Flatten, Conv2DTranspose
 from keras.layers import BatchNormalization, LeakyReLU, Conv2D
 from keras.layers import Dropout
-from keras.models import Sequential, Model  # Modely Keras
-from keras.optimizers import Adam  # Optimalizátor Adam
-import matplotlib.pyplot as plt  # Vykreslování obrázků
-import glob  # Vyhledávání souborů v adresáři
-from PIL import Image  # Práce s obrázky
-import noise as ns  # Generování šumu
-import numpy as np  # Matematické operace s poli
+from keras.models import Sequential, Model
+from keras.optimizers import Adam
+import glob
+from PIL import Image
+import noise as ns
+import numpy as np
 from keras.layers.convolutional import Conv2D
 from keras.layers import Dense
-from keras.layers.convolutional import MaxPooling2D
 from keras.layers import Flatten
 from keras.utils import plot_model
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import matplotlib
-
-import math
 import random
-from itertools import product
-
-# import keras_preprocessing.image.image_data_generator as ImageDataGenerator
 
 DATASET = 'data/input/region/'
 WEIGHT_PATH = 'data/weights/'
@@ -80,13 +73,14 @@ def downsample(filters, size, apply_batchnorm=True):
 class GAN():
 
     def __init__(self, noise_type='random'):
-        # Velikost vstupního obrázku
+        # Inicializace GAN sítě s daným typem šumu (random, perlin, simplex)
+
+
         self.img_rows = SIZE
         self.img_cols = SIZE
         self.channels = 3
         self.img_shape = (self.img_rows, self.img_cols, self.channels)
 
-        # Dimenze latentního vektoru
         self.noise_type = noise_type
         self.DATASET = DATASET
         self.LATENT_DIM = LATENT_DIM
@@ -116,14 +110,13 @@ class GAN():
         validity = self.discriminator(img)
 
         # Kombinovaný model (generátor a diskriminátor)
-        # Trénuje generátor, aby přelstil diskriminátor
         self.combined = Model(z, validity)
         self.combined.compile(loss='binary_crossentropy', optimizer=optimizer)
 
     def build_generator(self, noise_type):
         model = Sequential()
 
-        # Generator layers
+        # Vrstvy generátoru
         if noise_type == "random" or noise_type == "perlin" or noise_type == "simplex":
             model.add(Dense(128 * 16 * 16))
             model.add(LeakyReLU(alpha=0.2))
@@ -148,6 +141,77 @@ class GAN():
             model.add(BatchNormalization(momentum=0.8))
 
             model.add(Conv2DTranspose(3, kernel_size=5, strides=1, padding='same', activation='tanh'))
+
+            ##--------------------------------------------------
+            ##Alternativa pro náhodný šum pro 123000 epochách
+            ##--------------------------------------------------
+
+            # model.add(Dense(128 * WIDTH * WIDTH))
+            # model.add(LeakyReLU(alpha=0.2))
+            # model.add(Reshape((WIDTH, WIDTH, 128)))
+            # model.add(Conv2DTranspose(512, kernel_size=5, strides=2, padding='same'))
+            # model.add(LeakyReLU(alpha=0.2))
+            # model.add(BatchNormalization(momentum=0.8))
+            # model.add(Dropout(0.4))
+            #
+            # model.add(Conv2DTranspose(256, kernel_size=5, strides=2, padding='same'))
+            # model.add(LeakyReLU(alpha=0.2))
+            # model.add(BatchNormalization(momentum=0.8))
+            # model.add(Dropout(0.4))
+            #
+            # model.add(Conv2DTranspose(128, kernel_size=5, strides=2, padding='same'))
+            # model.add(LeakyReLU(alpha=0.2))
+            # model.add(BatchNormalization(momentum=0.8))
+            # # model.add(Dropout(0.4))
+            # #
+            # model.add(Conv2DTranspose(64, kernel_size=5, strides=2, padding='same'))
+            # model.add(LeakyReLU(alpha=0.2))
+            # model.add(BatchNormalization(momentum=0.8))
+            #
+            # model.add(Conv2D(32, kernel_size=3, strides=2, padding='same'))
+            # model.add(LeakyReLU(alpha=0.2))
+            # model.add(BatchNormalization(momentum=0.8))
+            # # model.add(Flatten())
+            # # model.add(Dense(256 * 256 * 3))
+            # # model.add(LeakyReLU(alpha=0.2))
+            # # model.add(Reshape((256, 256, 3)))
+            #
+            # model.add(Conv2D(3, kernel_size=3, strides=1, padding='same', activation='tanh'))
+
+            ## --------------------------------------------
+            ## Alternativa pro Perlin Noise pro váhy 67000:
+            ## --------------------------------------------
+
+        # if noise_type == "random" or noise_type == "perlin-12" or noise_type == "simplex-v2":
+            #     model.add(Dense(128 * WIDTH * WIDTH))
+            #     model.add(LeakyReLU(alpha=0.2))
+            #     model.add(Reshape((WIDTH, WIDTH, 128)))
+            #     model.add(Conv2DTranspose(512, kernel_size=5, strides=2, padding='same'))
+            #     model.add(LeakyReLU(alpha=0.2))
+            #     model.add(BatchNormalization(momentum=0.8))
+            #     model.add(Dropout(0.4))
+            #
+            #     model.add(Conv2DTranspose(256, kernel_size=5, strides=2, padding='same'))
+            #     model.add(LeakyReLU(alpha=0.2))
+            #     model.add(BatchNormalization(momentum=0.8))
+            #     model.add(Dropout(0.4))
+            #
+            #     model.add(Conv2DTranspose(128, kernel_size=5, strides=2, padding='same'))
+            #     model.add(LeakyReLU(alpha=0.2))
+            #     model.add(BatchNormalization(momentum=0.8))
+            #     # model.add(Dropout(0.4))
+            #     #
+            #     # model.add(Conv2DTranspose(64, kernel_size=5, strides=2, padding='same'))
+            #     # model.add(LeakyReLU(alpha=0.2))
+            #     # model.add(BatchNormalization(momentum=0.8))
+            #
+            #     # model.add(Flatten())
+            #     # model.add(Dense(256 * 256 * 3))
+            #     # model.add(LeakyReLU(alpha=0.2))
+            #     # model.add(Reshape((256, 256, 3)))
+            #
+            #     model.add(Conv2D(3, kernel_size=3, strides=1, padding='same', activation='tanh'))
+
         else:
             inputs = tf.keras.layers.Input(shape=[WIDTH, WIDTH, 3])
 
@@ -205,18 +269,18 @@ class GAN():
     def build_discriminator(self):
         model = Sequential()
 
-        # Discriminator layers
+        # Vrstvy diskriminátoru
         model.add(Conv2D(32, kernel_size=3, strides=2, input_shape=(256, 256, 3), padding='same'))
         model.add(LeakyReLU(alpha=0.2))
-        model.add(Dropout(0.4))  # Dropout layer
+        model.add(Dropout(0.4))
         model.add(Conv2D(64, kernel_size=3, strides=2, padding='same'))
 
         model.add(LeakyReLU(alpha=0.2))
-        model.add(Dropout(0.4))  # Dropout layer
+        model.add(Dropout(0.4))
         model.add(Conv2D(128, kernel_size=3, strides=2, padding='same'))
 
         model.add(LeakyReLU(alpha=0.2))
-        model.add(Dropout(0.4))  # Dropout layer
+        model.add(Dropout(0.4))
         model.add(Conv2D(256, kernel_size=3, strides=2, padding='same'))
 
         model.add(LeakyReLU(alpha=0.2))
@@ -230,7 +294,7 @@ class GAN():
 
         return Model(img, validity)
 
-    def train(self, epochs, batch_size=100, sample_interval=50, noise_type='random', epoch=0):
+    def train(self, epochs, batch_size=100, sample_interval=50, noise_type='random'):
         """
         Metoda pro trénování modelu.
 
@@ -403,11 +467,11 @@ class GAN():
         - noise_type: Typ šumu pro generátor (random/perlin/simplex)
         """
         try:
-            x, y = 3, 4  # Grid size
+            x, y = 3, 4  # počet obrázků
 
             gen_imgs = np.empty((x * y, self.img_rows, self.img_cols, self.channels))
             #noise_imgs = np.empty((x * y, self.img_rows, self.img_cols, self.channels))
-            noise=[]
+
 
             noise = np.random.normal(0, 1, (x * y, self.LATENT_DIM))
             for i in range(x):
@@ -415,13 +479,13 @@ class GAN():
                     seed = np.random.randint(0, 1000)
 
                     if noise_type == 'perlin':
-                        perlin_noise = np.empty((1, self.LATENT_DIM))
+                        perlin_noise = np.empty(self.LATENT_DIM)
                         for k in range(self.LATENT_DIM):
                             xs = (seed + k % WIDTH) / 4
                             ys = (seed + k / WIDTH) / 4
-                            perlin_noise[0, k] = ns.pnoise2(xs, ys, octaves=OCTAVES, persistence=PERSISTENCE,
+                            perlin_noise[k] = ns.pnoise2(xs, ys, octaves=OCTAVES, persistence=PERSISTENCE,
                                                             lacunarity=LACUNARITY)
-                        noise = perlin_noise
+                        noise[i * y + j] = perlin_noise
 
                     elif noise_type == 'perlin2D':
                         perlin_noise = np.empty((1, self.LATENT_DIM, 3))
@@ -429,7 +493,7 @@ class GAN():
                             perlin_noise[0, k] = ns.pnoise2(i / x, j / y, base=seed)
                         noise = np.reshape(perlin_noise, (1, WIDTH, WIDTH, 3))
 
-                    elif noise_type == 'simplex':
+                    elif noise_type == 'perlin':
                         simplex_noise = np.empty(self.LATENT_DIM)
                         for k in range(self.LATENT_DIM):
                             xs = (seed + k % WIDTH) / 4
@@ -461,10 +525,7 @@ class GAN():
                 plt.suptitle("Vygenerovaný výstup")
             fig.savefig(os.path.join(output_dir, "n_%d.png" % epoch), dpi=dpi)
 
-            # plt.close()
 
-            #print(gen_imgs)
-            #print(noise)
 
             if UI:
                 image_paths = []
@@ -486,7 +547,7 @@ class GAN():
 
                 plt.suptitle("Dataset")
                 fig.savefig(os.path.join(output_dir, "d_%d.png" % epoch), dpi=dpi)
-                # plt.close()
+
 
 
 
@@ -524,8 +585,7 @@ class GAN():
 
             self.discriminator.save_weights(weights_path_discriminator)
 
-    # def load_weights(self, weights_file):
-    #    self.combined.load_weights(weights_file)
+
 
 
 if __name__ == '__main__':

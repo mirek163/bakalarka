@@ -22,7 +22,7 @@ contrast_factor2 = 0.85
 
 #----------------------------------------
 
-# Open the image using rasterio protože Image size (233280000 pixels) exceeds limit of 178956970 pixels
+#Tohle protože velikost obrázku je (233280000 pixelů) a to přesahuje limit 178956970 pixelů
 with rasterio.open(image_path) as dataset:
     image_array = dataset.read()
 

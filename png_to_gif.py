@@ -12,7 +12,7 @@ for i in imgs:
     frames.append(new_frame)
 
 # Save into a GIF file that loops forever
-frames[0].save('with_all_dropout.gif', format='GIF',
+frames[0].save('map.gif', format='GIF',
                append_images=frames[1:],
                save_all=True,
                duration=1000, loop=0)
